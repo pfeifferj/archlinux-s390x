@@ -1,0 +1,5 @@
+# CODEOWNERS for Arch Linux s390x LPAR boot components
+
+# Global owners
+* @pfeifferj josie@redhat.com
+* @Morganamilo morganamilo@archlinux.org

@@ -1,0 +1,30 @@
+# ISO files
+*.iso
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.ko
+*.obj
+*.elf
+
+# Compressed files
+*.gz
+*.bz2
+*.xz
+
+# Backup files
+*.bak
+*.backup
+
+# Log files
+*.log
