@@ -22,13 +22,31 @@ SOFTWARE.
 
 ================================================================================
 
-This distribution contains software from the Arch Linux project, which includes
-components under various open source licenses including but not limited to:
-- GNU General Public License (GPL)
-- GNU Lesser General Public License (LGPL)
-- BSD licenses
-- MIT license
-- Apache License
+This distribution contains software from multiple open source projects:
+
+ARCH LINUX COMPONENTS:
+- mkinitcpio (initramfs generation tool) from Arch Linux
+- Licensed under GNU General Public License v2
+- Source: https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio
+- Copyright (C) Arch Linux developers
+- Used and adapted for s390x architecture support
+
+BUSYBOX BINARY:
+- BusyBox v1.35.0 (output/busybox-s390x-native)
+- Licensed under GNU General Public License v2
+- Source: https://busybox.net/downloads/busybox-1.35.0.tar.bz2
+- Copyright (C) 1998-2023 Erik Andersen, Rob Landley, Denys Vlasenko and others
+- Full BusyBox license: https://git.busybox.net/busybox/tree/LICENSE
+
+LINUX KERNEL:
+- Linux kernel s390x build based on upstream kernel
+- Licensed under GNU General Public License v2
+- Source: https://www.kernel.org/
+
+GPL COMPLIANCE:
+This distribution includes GPL-licensed software. The complete source code
+for all GPL components is available from their respective upstream sources.
+BusyBox source code is available at https://busybox.net/
 
 For specific licensing information about individual packages, please refer to
-the license files included with each package in the Arch Linux repositories.
+the license files included with each package in the respective repositories.

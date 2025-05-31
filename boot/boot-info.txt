@@ -1,0 +1,17 @@
+Arch Linux s390x Boot Directory
+==============================
+
+Kernel Version: 6.6.10
+Build Date: Sat May 31 08:47:08 PM CEST 2025
+Architecture: s390x
+
+Files:
+- vmlinuz-linux: Linux kernel for s390x
+- initramfs-linux.img: Initial RAM filesystem
+- generic.ins: IPL configuration file
+- arch.prm: Kernel boot parameters
+- initrd.addrsize: Memory layout for initrd
+
+For QEMU testing:
+  make test
+  

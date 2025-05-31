@@ -28,3 +28,44 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Claude context file
+CLAUDE.md
+
+# Build outputs
+output/
+temp-initramfs/
+tmp-initramfs/
+
+# Temporary build scripts
+build-final-initramfs.sh
+
+# Linked mkinitcpio repository
+mkinitcpio-source/
+
+# Build artifacts and cache
+*.cache
+build/
+
+# Extracted initramfs contents (debug files)
+bin
+sbin
+lib
+lib64
+usr/
+etc/
+var/
+dev/
+proc/
+sys/
+run/
+tmp/
+new_root/
+init
+init_functions
+early_cpio
+buildconfig
+config
+VERSION
+CLAUDE.md
+PROJECT_SUMMARY.md

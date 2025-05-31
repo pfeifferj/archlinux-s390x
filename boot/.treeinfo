@@ -1,0 +1,13 @@
+[general]
+name = Arch Linux
+family = Arch Linux
+version = Rolling
+arch = s390x
+platforms = s390x
+
+[images-s390x]
+kernel = vmlinuz-linux
+initrd = initramfs-linux.img
+generic.prm = arch.prm
+generic.ins = generic.ins
+initrd.addrsize = initrd.addrsize
