@@ -1,0 +1,109 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'New release'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+      
+      - name: Build kernel
+        run: |
+          echo "Building s390x kernel..."
+          scripts/build-all.sh --kernel-only
+      
+      - name: Build initramfs
+        run: |
+          echo "Building s390x initramfs..."
+          scripts/build-all.sh --initramfs-only
+      
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release-artifacts
+          
+          # Copy kernel
+          cp output/vmlinuz-linux release-artifacts/vmlinuz-linux-s390x
+          
+          # Copy initramfs
+          cp output/initramfs-linux.img release-artifacts/initramfs-linux-s390x.img
+          
+          # Copy boot configuration files
+          cp -r boot/* release-artifacts/
+          
+          # Create checksums
+          cd release-artifacts
+          sha256sum * > SHA256SUMS
+          cd ..
+          
+          # Create tarball of all artifacts
+          tar -czf archlinux-s390x-${{ github.event.inputs.version }}.tar.gz -C release-artifacts .
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Arch Linux s390x ${{ github.event.inputs.version }}
+          body: |
+            # Arch Linux s390x Port - ${{ github.event.inputs.version }}
+            
+            ${{ github.event.inputs.release_notes }}
+            
+            ## Release Contents
+            
+            This release includes:
+            - **vmlinuz-linux-s390x**: Linux kernel 6.6.10 for s390x architecture
+            - **initramfs-linux-s390x.img**: Initial RAM filesystem with s390x busybox
+            - **Boot configuration files**: IPL configuration for s390x mainframes
+            - **SHA256SUMS**: Checksums for all artifacts
+            
+            ## Quick Start
+            
+            ```bash
+            # Download and extract
+            tar -xzf archlinux-s390x-${{ github.event.inputs.version }}.tar.gz
+            
+            # Test with QEMU
+            qemu-system-s390x \
+              -machine s390-ccw-virtio \
+              -cpu max \
+              -m 2G \
+              -kernel vmlinuz-linux-s390x \
+              -initrd initramfs-linux-s390x.img \
+              -append "console=ttyS0 init=/init" \
+              -nographic
+            ```
+            
+            ## Build Information
+            
+            - **Kernel**: Linux 6.6.10
+            - **Architecture**: IBM s390x (big-endian)
+            - **Build System**: Container-based cross-compilation
+            - **Status**: Boots to emergency shell
+          draft: false
+          prerelease: false
+          files: |
+            archlinux-s390x-${{ github.event.inputs.version }}.tar.gz
+            release-artifacts/vmlinuz-linux-s390x
+            release-artifacts/initramfs-linux-s390x.img
+            release-artifacts/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
