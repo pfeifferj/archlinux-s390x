@@ -8,7 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/output"
 INITRAMFS_NAME="initramfs-${KERNEL_VERSION}-s390x.img"
-MKINITCPIO_SOURCE="/home/josie/development/archlinux/mkinitcpio" # changeme :)
+MKINITCPIO_SOURCE="$PROJECT_ROOT/mkinitcpio-source"
+MKINITCPIO_REPO="https://gitlab.archlinux.org/archlinux/mkinitcpio.git"
+MKINITCPIO_VERSION="v39.2"  # Latest stable version
 
 # Colors
 RED='\033[0;31m'
@@ -17,6 +19,16 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo -e "${GREEN}=== Building initramfs with modified mkinitcpio ===${NC}"
+
+# Clone mkinitcpio from upstream
+echo -e "${YELLOW}Cloning mkinitcpio from upstream...${NC}"
+rm -rf "$MKINITCPIO_SOURCE"
+git clone --depth 1 --branch "$MKINITCPIO_VERSION" "$MKINITCPIO_REPO" "$MKINITCPIO_SOURCE"
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to clone mkinitcpio${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Cloned mkinitcpio ${MKINITCPIO_VERSION}${NC}"
 
 # Create build script that runs inside container
 cat > "$PROJECT_ROOT/build-final-initramfs.sh" << 'EOF'
@@ -286,10 +298,7 @@ EOF
 
 chmod +x "$PROJECT_ROOT/build-final-initramfs.sh"
 
-# Copy the mkinitcpio source to our project for mounting
-echo -e "${YELLOW}Copying mkinitcpio source...${NC}"
-rm -rf "$PROJECT_ROOT/mkinitcpio-source"
-cp -r "$MKINITCPIO_SOURCE" "$PROJECT_ROOT/mkinitcpio-source"
+# mkinitcpio source already cloned at the beginning of the script
 
 # Run mkinitcpio in container
 echo -e "${YELLOW}Running modified mkinitcpio for s390x...${NC}"
