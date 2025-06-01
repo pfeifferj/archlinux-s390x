@@ -79,6 +79,9 @@ CONFIG_VIRTIO_PCI=y
 CONFIG_TN3215=y
 CONFIG_TN3270=y
 
+# System identity
+CONFIG_DEFAULT_HOSTNAME="arch"
+
 # Required for initramfs
 CONFIG_BLK_DEV_INITRD=y
 CONFIG_RD_GZIP=y

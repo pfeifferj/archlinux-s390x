@@ -38,7 +38,7 @@ Uses **Fedora containers with Podman** for cross-compilation:
 ```bash
 # Container images:
 s390x-fedora-kernel          # Kernel compilation
-s390x-mkinitcpio-complete    # Initramfs generation
+s390x-archlinux-dev          # All-in-one development container
 ```
 
 ### Key Scripts:

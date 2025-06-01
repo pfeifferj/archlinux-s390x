@@ -63,11 +63,12 @@ EOF
 sed -i 's/CONFIG_FEATURE_HAVE_RPC=y/CONFIG_FEATURE_HAVE_RPC=n/' .config
 sed -i 's/CONFIG_LOCALE_SUPPORT=y/CONFIG_LOCALE_SUPPORT=n/' .config
 
-# Create minimal byteswap.h if missing
-if [ ! -f /usr/include/byteswap.h ]; then
-    echo "Creating minimal byteswap.h..."
-    mkdir -p include
-    cat > include/byteswap.h << 'BYTESWAP_EOF'
+# Create minimal byteswap.h (always create to ensure compatibility)
+echo "Creating minimal byteswap.h for cross-compilation..."
+mkdir -p include
+
+# Create byteswap.h that uses system stdint.h
+cat > include/byteswap.h << 'BYTESWAP_EOF'
 #ifndef _BYTESWAP_H
 #define _BYTESWAP_H
 
@@ -92,14 +93,28 @@ static inline uint64_t bswap_64(uint64_t x) {
 
 #endif /* _BYTESWAP_H */
 BYTESWAP_EOF
+
+# Remove any conflicting stdint.h from busybox source
+if [ -f include/stdint.h ]; then
+    echo "Removing busybox's conflicting stdint.h"
+    rm -f include/stdint.h
 fi
 
-# Build with specific flags to handle missing headers
-echo "Building busybox..."
+# Let busybox find its own headers
+echo "Building busybox with minimal configuration..."
+make clean || true
+
+# Try building with the cross compiler's sysroot
+SYSROOT=$(s390x-linux-gnu-gcc -print-sysroot)
+echo "Using sysroot: $SYSROOT"
+
+# Build with proper include path order - system headers first
 make \
-    EXTRA_CFLAGS="-I$(pwd)/include -D__MUSL__ -static" \
-    EXTRA_LDFLAGS="-static -pthread" \
-    CONFIG_EXTRA_LDLIBS="pthread" \
+    CFLAGS="--sysroot=$SYSROOT -I$(pwd)/include" \
+    LDFLAGS="-static" \
+    CONFIG_STATIC=y \
+    HOSTCC=gcc \
+    HOSTCFLAGS="" \
     -j$(nproc) 2>&1 | tee build.log
 
 # Verify the binary was built and is correct architecture
@@ -108,9 +123,12 @@ if [ -f busybox ]; then
     file busybox
     ls -la busybox
     
-    # Copy to output directory
-    cp busybox "$OUTPUT_DIR/busybox-s390x"
-    chmod +x "$OUTPUT_DIR/busybox-s390x"
+    # Copy to output directory with both naming conventions
+    cp busybox "$OUTPUT_DIR/busybox-s390x-static"
+    chmod +x "$OUTPUT_DIR/busybox-s390x-static"
+    
+    # Also create a native version link for compatibility
+    ln -sf busybox-s390x-static "$OUTPUT_DIR/busybox-s390x-native"
     
     echo "✅ s390x busybox binary built successfully!"
     echo "Size: $(du -h busybox | cut -f1)"

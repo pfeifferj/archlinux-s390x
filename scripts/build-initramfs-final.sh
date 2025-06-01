@@ -9,8 +9,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/output"
 INITRAMFS_NAME="initramfs-${KERNEL_VERSION}-s390x.img"
 MKINITCPIO_SOURCE="$PROJECT_ROOT/mkinitcpio-source"
-MKINITCPIO_REPO="https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio.git"
-MKINITCPIO_VERSION="v39.2"  # Latest stable version
+MKINITCPIO_REPO="https://github.com/archlinux/mkinitcpio.git"
 
 # Colors
 RED='\033[0;31m'
@@ -20,15 +19,15 @@ NC='\033[0m'
 
 echo -e "${GREEN}=== Building initramfs with modified mkinitcpio ===${NC}"
 
-# Clone mkinitcpio from upstream
-echo -e "${YELLOW}Cloning mkinitcpio from upstream...${NC}"
+# Clone mkinitcpio from upstream (latest version)
+echo -e "${YELLOW}Cloning mkinitcpio from upstream (latest)...${NC}"
 rm -rf "$MKINITCPIO_SOURCE"
-git clone --depth 1 --branch "$MKINITCPIO_VERSION" "$MKINITCPIO_REPO" "$MKINITCPIO_SOURCE"
+git clone --depth 1 "$MKINITCPIO_REPO" "$MKINITCPIO_SOURCE"
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to clone mkinitcpio${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Cloned mkinitcpio ${MKINITCPIO_VERSION}${NC}"
+echo -e "${GREEN}✓ Cloned latest mkinitcpio${NC}"
 
 # Create build script that runs inside container
 cat > "$PROJECT_ROOT/build-final-initramfs.sh" << 'EOF'
@@ -41,101 +40,31 @@ INITRAMFS_OUTPUT="/work/output/initramfs-${KERNEL_VERSION}-s390x.img"
 echo "Building and installing modified mkinitcpio..."
 
 # Copy the mkinitcpio source
-cp -r /work/mkinitcpio-source /tmp/mkinitcpio
+mkdir -p /tmp/mkinitcpio
+cp -r /work/mkinitcpio-source/* /tmp/mkinitcpio/
+cp -r /work/mkinitcpio-source/.[^.]* /tmp/mkinitcpio/ 2>/dev/null || true
 cd /tmp/mkinitcpio
+
+# Verify we're in the right directory
+if [ ! -f "meson.build" ]; then
+    echo "ERROR: meson.build not found. Directory contents:"
+    ls -la
+    exit 1
+fi
 
 # Apply s390x patches
 echo "Applying s390x patches to mkinitcpio..."
-cat > install/base << 'PATCH_EOF'
-#!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-2.0-only
-# Modified for s390x cross-architecture support
 
-build() {
-    local applet
-    
-    # Use s390x busybox binary if available (cross-architecture support)
-    if [[ -f "/work/output/busybox-s390x-static" ]]; then
-        echo "Using s390x static busybox binary"
-        add_file "/work/output/busybox-s390x-static" "/bin/busybox" 755
-        
-        # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
-        local busybox_applets=(
-            "[" "[[" "ash" "awk" "basename" "cat" "chgrp" "chmod" "chown" "cp" "cut"
-            "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
-            "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
-            "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
-            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
-            "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
-        )
-        
-        for applet in "${busybox_applets[@]}"; do
-            add_symlink "/usr/bin/$applet" busybox
-        done
-    elif [[ -f "/work/output/busybox-s390x-native" ]]; then
-        echo "Using s390x busybox binary"
-        add_file "/work/output/busybox-s390x-native" "/bin/busybox" 755
-        
-        # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
-        local busybox_applets=(
-            "[" "[[" "ash" "awk" "basename" "cat" "chgrp" "chmod" "chown" "cp" "cut"
-            "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
-            "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
-            "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
-            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
-            "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
-        )
-        
-        for applet in "${busybox_applets[@]}"; do
-            add_symlink "/usr/bin/$applet" busybox
-        done
-    else
-        echo "Warning: s390x busybox not found, using system busybox (may cause architecture mismatch)"
-        add_binary /usr/lib/initcpio/busybox /bin/busybox
-        for applet in $(/usr/lib/initcpio/busybox --list 2>/dev/null || echo "sh ash"); do
-            add_symlink "/usr/bin/$applet" busybox
-        done
-    fi
-
-    # Add kmod with applet symlinks (if available)
-    if type -P kmod >/dev/null 2>&1; then
-        echo "Adding kmod utilities..."
-        add_binary kmod
-        for applet in {dep,ins,rm,ls}mod mod{probe,info}; do
-            add_symlink "/usr/bin/$applet" kmod
-        done
-    else
-        echo "Warning: kmod not found, module utilities will not be available"
-    fi
-
-    # Check for additional utilities (may not be available in cross-compile environment)
-    for binary in blkid mount umount switch_root; do
-        if type -P "$binary" >/dev/null 2>&1; then
-            echo "Adding $binary"
-            add_binary "$binary"
-        else
-            echo "Warning: $binary not found, skipping (functionality may be limited)"
-        fi
-    done
-
-    # Always add init files
-    echo "Adding init files..."
-    add_file "/usr/lib/initcpio/init_functions" "/init_functions"
-    add_file "/usr/lib/initcpio/init" "/init" 755
-}
-
-help() {
-    cat <<HELPEOF
-This hook provides crucial runtime necessities for booting. This is a modified 
-version with s390x cross-architecture support. DO NOT remove this hook unless 
-you know what you're doing.
-HELPEOF
-}
-
-# vim: set ft=sh ts=4 sw=4 et:
-PATCH_EOF
-
-echo "✓ Applied s390x patches to base install hook"
+# Check if patch file exists and apply it
+if [ -f "/work/patches/mkinitcpio-s390x-base-hook.patch" ]; then
+    echo "Found mkinitcpio patch, applying..."
+    cp /work/patches/mkinitcpio-s390x-base-hook.patch install/base
+    chmod +x install/base
+    echo "✓ Applied s390x patches to base install hook"
+else
+    echo "ERROR: Patch file not found at /work/patches/mkinitcpio-s390x-base-hook.patch"
+    exit 1
+fi
 
 # Clean any existing build directory
 rm -rf build
@@ -157,7 +86,7 @@ echo "Setting up s390x environment..."
 
 # Install missing dependencies
 echo "Installing required dependencies..."
-dnf install -y kmod-libs kmod util-linux busybox || echo "Warning: Some packages could not be installed"
+dnf install -y kmod-libs kmod util-linux busybox bsdtar || echo "Warning: Some packages could not be installed"
 
 # Create kernel module directory structure
 KERNEL_DIR="/lib/modules/${KERNEL_VERSION}-s390x"
@@ -177,10 +106,11 @@ fi
 
 # Ensure init files are in the correct location
 echo "Verifying init files installation..."
-if [ -f /usr/lib/initcpio/init ]; then
-    echo "✓ /usr/lib/initcpio/init found"
+# Check both lib and lib64 locations
+if [ -f /usr/lib/initcpio/init ] || [ -f /usr/lib64/initcpio/init ]; then
+    echo "✓ init found"
 else
-    echo "✗ /usr/lib/initcpio/init missing - copying from source"
+    echo "✗ init missing - copying from source"
     if [ -f /tmp/mkinitcpio/init ]; then
         mkdir -p /usr/lib/initcpio
         cp /tmp/mkinitcpio/init /usr/lib/initcpio/init
@@ -188,13 +118,21 @@ else
     fi
 fi
 
-if [ -f /usr/lib/initcpio/init_functions ]; then
-    echo "✓ /usr/lib/initcpio/init_functions found"
+if [ -f /usr/lib/initcpio/init_functions ] || [ -f /usr/lib64/initcpio/init_functions ]; then
+    echo "✓ init_functions found"
 else
-    echo "✗ /usr/lib/initcpio/init_functions missing - copying from source"
+    echo "✗ init_functions missing - copying from source"
     if [ -f /tmp/mkinitcpio/init_functions ]; then
+        mkdir -p /usr/lib/initcpio
         cp /tmp/mkinitcpio/init_functions /usr/lib/initcpio/init_functions
     fi
+fi
+
+# Create symlinks if installed in lib64
+if [ -d /usr/lib64/initcpio ] && [ ! -d /usr/lib/initcpio ]; then
+    echo "Creating symlinks from lib64 to lib..."
+    mkdir -p /usr/lib
+    ln -sf /usr/lib64/initcpio /usr/lib/initcpio
 fi
 
 # Create a minimal working s390x configuration
@@ -207,17 +145,14 @@ if [ -f /work/custom-init ]; then
     chmod 755 /usr/lib/initcpio/init
 fi
 
-cat > /etc/mkinitcpio-s390x.conf << 'CONFIG'
-# Minimal s390x mkinitcpio configuration
-# This config creates a basic initramfs without kernel modules
-MODULES=()
-BINARIES=()
-FILES=()
-# Only use base hook which provides busybox, init, and basic utilities
-HOOKS=(base)
-COMPRESSION="gzip"
-COMPRESSION_OPTIONS=(-6)
-CONFIG
+# Copy mkinitcpio configuration
+if [ -f "/work/patches/mkinitcpio-s390x.conf" ]; then
+    echo "Using s390x mkinitcpio configuration..."
+    cp /work/patches/mkinitcpio-s390x.conf /etc/mkinitcpio-s390x.conf
+else
+    echo "ERROR: Configuration file not found at /work/patches/mkinitcpio-s390x.conf"
+    exit 1
+fi
 
 echo "Generating initramfs with mkinitcpio..."
 echo "Configuration:"
@@ -225,6 +160,20 @@ cat /etc/mkinitcpio-s390x.conf
 
 # The s390x busybox integration is now handled by the patched base install hook
 echo "s390x busybox will be handled by the patched mkinitcpio base hook..."
+
+# Ensure busybox binary is available for the base hook
+if [ -f "/work/output/busybox-s390x-static" ]; then
+    echo "✓ Found s390x static busybox at /work/output/busybox-s390x-static"
+    ls -la /work/output/busybox-s390x-static
+elif [ -f "/work/output/busybox-s390x-native" ]; then
+    echo "✓ Found s390x native busybox at /work/output/busybox-s390x-native"
+    ls -la /work/output/busybox-s390x-native
+else
+    echo "ERROR: No s390x busybox binary found in /work/output/"
+    echo "Available files in /work/output:"
+    ls -la /work/output/
+    exit 1
+fi
 
 # Debug: List all files that mkinitcpio expects
 echo "Checking mkinitcpio dependencies:"
@@ -303,7 +252,7 @@ sudo podman run --rm \
     -v "$PROJECT_ROOT:/work" \
     -w /work \
     --privileged \
-    s390x-mkinitcpio-complete \
+    s390x-archlinux-dev \
     /work/build-final-initramfs.sh
 
 # Clean up copied source

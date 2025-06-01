@@ -8,9 +8,17 @@ RUN dnf install -y \
     gcc-s390x-linux-gnu \
     binutils-s390x-linux-gnu \
     kernel-cross-headers \
+    kernel-headers \
     glibc-devel \
     glibc-headers \
     glibc-static \
+    glibc-common \
+    glibc-all-langpacks \
+    musl-devel \
+    musl-gcc \
+    musl-libc-static \
+    libstdc++-devel \
+    libstdc++-static \
     # Kernel build dependencies
     make \
     flex \
@@ -47,6 +55,8 @@ RUN dnf install -y \
     coreutils \
     util-linux \
     file \
+    busybox \
+    bsdtar \
     && dnf clean all
 
 # Upgrade meson to latest version (Fedora 39 has 1.3.2, mkinitcpio needs >=1.4.0)

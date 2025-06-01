@@ -31,13 +31,25 @@ jobs:
           echo "Building required containers..."
           # Build the main container
           scripts/build-container.sh
-          # Tag it with the additional name used by initramfs script
-          sudo podman tag s390x-archlinux-dev s390x-mkinitcpio-complete
       
       - name: Build kernel
         run: |
           echo "Building s390x kernel..."
           scripts/build-kernel-container.sh
+      
+      - name: Build s390x busybox
+        run: |
+          echo "Building s390x busybox binary..."
+          # The build-all.sh script will handle this automatically
+          # but we'll call it explicitly for clarity in CI
+          if [ ! -f output/busybox-s390x-static ]; then
+            sudo podman run --rm \
+              -v $PWD:/work \
+              -v $PWD/output:/output \
+              -w /work \
+              s390x-archlinux-dev \
+              /work/scripts/build-busybox-s390x.sh
+          fi
       
       - name: Build initramfs
         run: |
@@ -69,6 +81,11 @@ jobs:
           
           # Create tarball of all artifacts
           tar -czf archlinux-s390x-${{ github.event.inputs.version }}.tar.gz -C release-artifacts .
+          
+          # Capture build information
+          echo "KERNEL_VERSION=6.6.10" >> $GITHUB_ENV
+          echo "MKINITCPIO_COMMIT=$(cd mkinitcpio-source && git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "MKINITCPIO_SHORT_COMMIT=$(cd mkinitcpio-source && git rev-parse --short HEAD)" >> $GITHUB_ENV
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -80,10 +97,16 @@ jobs:
             
             ${{ github.event.inputs.release_notes }}
             
+            ## Build Information
+            
+            - **Kernel Version**: ${{ env.KERNEL_VERSION }}
+            - **mkinitcpio**: Built from commit [`${{ env.MKINITCPIO_SHORT_COMMIT }}`](https://github.com/archlinux/mkinitcpio/commit/${{ env.MKINITCPIO_COMMIT }})
+            - **Build Date**: ${{ github.event.repository.updated_at }}
+            
             ## Release Contents
             
             This release includes:
-            - **vmlinuz-linux-s390x**: Linux kernel 6.6.10 for s390x architecture
+            - **vmlinuz-linux-s390x**: Linux kernel ${{ env.KERNEL_VERSION }} for s390x architecture
             - **initramfs-linux-s390x.img**: Initial RAM filesystem with s390x busybox
             - **Boot configuration files**: IPL configuration for s390x mainframes
             - **SHA256SUMS**: Checksums for all artifacts

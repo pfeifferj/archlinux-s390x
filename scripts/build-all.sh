@@ -94,6 +94,30 @@ if [ "$BUILD_KERNEL" = true ]; then
     "$PROJECT_ROOT/scripts/build-kernel-container.sh"
 fi
 
+# Build busybox if it doesn't exist
+if [ "$BUILD_INITRAMFS" = true ]; then
+    if [ ! -f "$PROJECT_ROOT/output/busybox-s390x-static" ] && [ ! -f "$PROJECT_ROOT/output/busybox-s390x-native" ]; then
+        echo
+        echo -e "${BLUE}=== Building s390x Busybox ===${NC}"
+        # Check if busybox build script exists
+        if [ -f "$PROJECT_ROOT/scripts/build-busybox-s390x.sh" ]; then
+            # Run busybox build in container
+            echo -e "${YELLOW}Building s390x busybox binary...${NC}"
+            sudo podman run --rm \
+                -v "$PROJECT_ROOT:/work" \
+                -v "$PROJECT_ROOT/output:/output" \
+                -w /work \
+                s390x-archlinux-dev \
+                /work/scripts/build-busybox-s390x.sh
+        else
+            echo -e "${RED}ERROR: build-busybox-s390x.sh not found${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✓ s390x busybox already exists${NC}"
+    fi
+fi
+
 # Build initramfs
 if [ "$BUILD_INITRAMFS" = true ]; then
     echo

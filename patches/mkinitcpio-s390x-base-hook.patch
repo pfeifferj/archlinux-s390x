@@ -1,79 +1,97 @@
---- a/install/base
-+++ b/install/base
-@@ -3,10 +3,60 @@
- 
- build() {
-     local applet
--
--    add_binary /usr/lib/initcpio/busybox /bin/busybox
--
--    for applet in $(/usr/lib/initcpio/busybox --list); do
-+    
-+    # Use s390x busybox binary if available (cross-architecture support)
-+    if [[ -f "/work/output/busybox-s390x-native" ]]; then
-+        echo "Using s390x busybox binary"
-+        add_file "/work/output/busybox-s390x-native" "/bin/busybox" 755
-+        
-+        # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
-+        local busybox_applets=(
-+            "[" "[[" "ash" "awk" "basename" "cat" "chgrp" "chmod" "chown" "cp" "cut"
-+            "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
-+            "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
-+            "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
-+            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
-+            "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
-+        )
-+        
-+        for applet in "${busybox_applets[@]}"; do
-+            add_symlink "/usr/bin/$applet" busybox
-+        done
-+    else
-+        echo "Warning: s390x busybox not found, using system busybox (may cause architecture mismatch)"
-+        add_binary /usr/lib/initcpio/busybox /bin/busybox
-+        for applet in $(/usr/lib/initcpio/busybox --list); do
-+            add_symlink "/usr/bin/$applet" busybox
-+        done
-+    fi
-+
-+    # For other binaries, try to use available versions, otherwise skip
-+    echo "Adding kmod utilities..."
-+    if type -P kmod >/dev/null 2>&1; then
-+        add_binary kmod
-+        for applet in {dep,ins,rm,ls}mod mod{probe,info}; do
-+            add_symlink "/usr/bin/$applet" kmod
-+        done
-+    else
-+        echo "Warning: kmod not found, skipping module utilities"
-+    fi
-+
-+    # Check for additional utilities (may not be available in cross-compile environment)
-+    echo "Checking for additional utilities..."
-+    for binary in blkid mount umount switch_root; do
-+        if type -P "$binary" >/dev/null 2>&1; then
-+            echo "Adding $binary"
-+            add_binary "$binary"
-+        else
-+            echo "Warning: $binary not found, skipping"
-+        fi
-+    done
-+
-+    # Original code (for reference):
-+    # add_binary /usr/lib/initcpio/busybox /bin/busybox
-+    # for applet in $(/usr/lib/initcpio/busybox --list); do
-         add_symlink "/usr/bin/$applet" busybox
-     done
- 
-@@ -16,9 +66,10 @@
-         add_symlink "/usr/bin/$applet" kmod
-     done
- 
--    add_binary blkid
--    map add_binary mount umount
--    add_binary switch_root
-+    # add_binary blkid
-+    # map add_binary mount umount  
-+    # add_binary switch_root
-+    # (These are now handled conditionally above)
- 
-     add_binary "/usr/lib/initcpio/init_functions" "/init_functions"
-     add_binary "/usr/lib/initcpio/init" "/init" 755
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Modified for s390x cross-architecture support
+
+build() {
+    local applet
+    
+    # Use s390x busybox binary if available (cross-architecture support)
+    if [[ -f "/work/output/busybox-s390x-static" ]]; then
+        echo "Using s390x static busybox binary"
+        add_file "/work/output/busybox-s390x-static" "/bin/busybox" 755
+        
+        # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
+        local busybox_applets=(
+            "[" "[[" "ash" "awk" "basename" "cat" "chgrp" "chmod" "chown" "cp" "cut"
+            "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
+            "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
+            "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
+            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
+            "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
+        )
+        
+        for applet in "${busybox_applets[@]}"; do
+            add_symlink "/usr/bin/$applet" busybox
+        done
+    elif [[ -f "/work/output/busybox-s390x-native" ]]; then
+        echo "Using s390x busybox binary"
+        add_file "/work/output/busybox-s390x-native" "/bin/busybox" 755
+        
+        # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
+        local busybox_applets=(
+            "[" "[[" "ash" "awk" "basename" "cat" "chgrp" "chmod" "chown" "cp" "cut"
+            "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
+            "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
+            "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
+            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
+            "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
+        )
+        
+        for applet in "${busybox_applets[@]}"; do
+            add_symlink "/usr/bin/$applet" busybox
+        done
+    else
+        echo "Warning: s390x busybox not found, using system busybox (may cause architecture mismatch)"
+        # Try to find busybox in various locations
+        if [[ -f /usr/lib/initcpio/busybox ]]; then
+            add_binary /usr/lib/initcpio/busybox /bin/busybox
+        elif [[ -f /usr/bin/busybox ]]; then
+            add_binary /usr/bin/busybox /bin/busybox
+        elif [[ -f /bin/busybox ]]; then
+            add_binary /bin/busybox /bin/busybox
+        else
+            echo "ERROR: No busybox binary found!"
+            return 1
+        fi
+        # Get applet list from the binary we found
+        for applet in $(busybox --list 2>/dev/null || echo "sh ash"); do
+            add_symlink "/usr/bin/$applet" busybox
+        done
+    fi
+
+    # Add kmod with applet symlinks (if available)
+    if type -P kmod >/dev/null 2>&1; then
+        echo "Adding kmod utilities..."
+        add_binary kmod
+        for applet in {dep,ins,rm,ls}mod mod{probe,info}; do
+            add_symlink "/usr/bin/$applet" kmod
+        done
+    else
+        echo "Warning: kmod not found, module utilities will not be available"
+    fi
+
+    # Check for additional utilities (may not be available in cross-compile environment)
+    for binary in blkid mount umount switch_root; do
+        if type -P "$binary" >/dev/null 2>&1; then
+            echo "Adding $binary"
+            add_binary "$binary"
+        else
+            echo "Warning: $binary not found, skipping (functionality may be limited)"
+        fi
+    done
+
+    # Always add init files
+    echo "Adding init files..."
+    add_file "/usr/lib/initcpio/init_functions" "/init_functions"
+    add_file "/usr/lib/initcpio/init" "/init" 755
+}
+
+help() {
+    cat <<HELPEOF
+This hook provides crucial runtime necessities for booting. This is a modified 
+version with s390x cross-architecture support. DO NOT remove this hook unless 
+you know what you're doing.
+HELPEOF
+}
+
+# vim: set ft=sh ts=4 sw=4 et:
