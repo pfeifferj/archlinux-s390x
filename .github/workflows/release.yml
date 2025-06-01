@@ -26,25 +26,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman
       
+      - name: Build containers
+        run: |
+          echo "Building required containers..."
+          # Build the main container
+          scripts/build-container.sh
+          # Tag it with the additional name used by initramfs script
+          sudo podman tag s390x-archlinux-dev s390x-mkinitcpio-complete
+      
       - name: Build kernel
         run: |
           echo "Building s390x kernel..."
-          scripts/build-all.sh --kernel-only
+          scripts/build-kernel-container.sh
       
       - name: Build initramfs
         run: |
           echo "Building s390x initramfs..."
-          scripts/build-all.sh --initramfs-only
+          scripts/build-initramfs-final.sh
+      
+      - name: Prepare boot files
+        run: |
+          echo "Preparing boot configuration..."
+          scripts/prepare-boot.sh
       
       - name: Prepare release artifacts
         run: |
           mkdir -p release-artifacts
           
           # Copy kernel
-          cp output/vmlinuz-linux release-artifacts/vmlinuz-linux-s390x
+          cp output/vmlinuz-6.6.10-s390x release-artifacts/vmlinuz-linux-s390x
           
           # Copy initramfs
-          cp output/initramfs-linux.img release-artifacts/initramfs-linux-s390x.img
+          cp output/initramfs-6.6.10-s390x.img release-artifacts/initramfs-linux-s390x.img
           
           # Copy boot configuration files
           cp -r boot/* release-artifacts/

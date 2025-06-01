@@ -52,7 +52,7 @@ fi
 
 # Setup toolchain path
 echo -e "${YELLOW}Setting up toolchain path...${NC}"
-source "$PROJECT_ROOT/setup-path.sh"
+source "$PROJECT_ROOT/scripts/setup-path.sh"
 
 # Parse arguments
 BUILD_KERNEL=true

@@ -9,7 +9,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/output"
 INITRAMFS_NAME="initramfs-${KERNEL_VERSION}-s390x.img"
 MKINITCPIO_SOURCE="$PROJECT_ROOT/mkinitcpio-source"
-MKINITCPIO_REPO="https://gitlab.archlinux.org/archlinux/mkinitcpio.git"
+MKINITCPIO_REPO="https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio.git"
 MKINITCPIO_VERSION="v39.2"  # Latest stable version
 
 # Colors
@@ -137,15 +137,12 @@ PATCH_EOF
 
 echo "✓ Applied s390x patches to base install hook"
 
-# Clean any existing build
+# Clean any existing build directory
 rm -rf build
 
 # Build with meson
 echo "Setting up meson build..."
 meson setup build --prefix=/usr --sysconfdir=/etc
-
-echo "Building mkinitcpio..."
-meson compile -C build
 
 echo "Installing mkinitcpio..."
 meson install -C build
