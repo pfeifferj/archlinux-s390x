@@ -19,8 +19,8 @@ ROOTFS_IMG="boot/rootfs-s390x.img"
 echo "Creating minimal root filesystem (forcing recreation)..."
 rm -f "$ROOTFS_IMG"
 
-# Create 100MB root filesystem image
-dd if=/dev/zero of="$ROOTFS_IMG" bs=1M count=100
+# Create 150MB root filesystem image (for systemd)
+dd if=/dev/zero of="$ROOTFS_IMG" bs=1M count=150
 
 # Format as ext4
 mkfs.ext4 -F "$ROOTFS_IMG"
@@ -37,6 +37,24 @@ sudo cp boot/busybox-s390x-static /tmp/rootfs-mount/bin/busybox
 
 # Create busybox symlinks for basic utilities
 sudo chroot /tmp/rootfs-mount /bin/busybox --install -s
+
+# Copy systemd components if available
+if [ -d "output/systemd-root" ]; then
+    echo "Installing systemd to root filesystem..."
+    sudo cp -r output/systemd-root/* /tmp/rootfs-mount/
+    
+    # Create systemd init symlink
+    sudo ln -sf /usr/lib/systemd/systemd /tmp/rootfs-mount/sbin/init-systemd
+    
+    # Create systemd directories
+    sudo mkdir -p /tmp/rootfs-mount/run/systemd
+    sudo mkdir -p /tmp/rootfs-mount/var/log/journal
+    sudo mkdir -p /tmp/rootfs-mount/etc/systemd/system
+    
+    echo "✓ Systemd installed (42MB)"
+else
+    echo "⚠ Systemd not found - using busybox init only"
+fi
 
 # Pre-create TTY devices to avoid errors
 sudo mknod /tmp/rootfs-mount/dev/console c 5 1 2>/dev/null || true

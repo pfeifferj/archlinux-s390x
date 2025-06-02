@@ -1,6 +1,6 @@
-# Arch Linux s390x Port 
+# Arch Linux s390x Port with Systemd
 
-This repository contains a **complete, working** s390x Arch Linux system with full root filesystem support that boots successfully on IBM mainframes and QEMU emulation.
+This repository contains a **complete, working** s390x Arch Linux system with **systemd support** and full root filesystem that boots successfully on IBM mainframes and QEMU emulation.
 
 ## Quick Start
 
@@ -13,6 +13,9 @@ make test
 
 # Test with root filesystem
 make test-rootfs
+
+# Test with systemd as init
+make test-systemd
 ```
 
 ## What's Working
@@ -20,7 +23,9 @@ make test-rootfs
 - **Arch Linux Kernel**: Linux 6.6.10 with Arch patches cross-compiled for IBM mainframes (5.8MB)
 - **Initramfs**: Complete 5.9MB initramfs with s390x busybox
 - **Boot Process**: Successful boot to root filesystem with busybox shell
-- **Root Filesystem**: **COMPLETE!** 100MB ext4 root filesystem with Arch Linux identification
+- **Root Filesystem**: **COMPLETE!** 150MB ext4 root filesystem with Arch Linux identification
+- **Systemd**: **NEW!** 42MB minimal systemd built natively on IBM z/VM
+- **Modern Init**: Systemd components ready for enterprise mainframe deployment
 - **QEMU Testing**: Fully functional in s390x emulation
 - **Ready for Hardware**: IPL configuration for real mainframes
 
@@ -32,17 +37,18 @@ make test-rootfs
 | Kernel | ✅ Working | 5.8MB bootable s390x kernel with Arch patches (6.6.10) |
 | Initramfs | ✅ Working | 5.9MB with native s390x binaries |
 | Boot Process | ✅ Working | IPL → kernel → initramfs → root filesystem |
-| Root Filesystem | ✅ **COMPLETE** | 100MB ext4 with working busybox switch_root |
+| Root Filesystem | ✅ **COMPLETE** | 150MB ext4 with working busybox switch_root |
+| Systemd | ✅ **BUILT** | 42MB minimal systemd with native s390x compilation |
 | mkinitcpio | ✅ Fixed | Adapted for s390x architecture |
 
 ### Userspace Components
 | Component | Status | Details |
 |-----------|--------|---------|
-| Init System | 🟨 Minimal | Busybox init (not systemd) |
+| Init System | ✅ **DUAL** | Busybox init + systemd available |
 | Shell | 🟨 Minimal | Busybox sh (not bash) |
 | Core Utilities | 🟨 Minimal | Busybox applets only |
 | Package Manager | ❌ TODO | Pacman needs porting |
-| Systemd | ❌ TODO | Requires cross-compilation |
+| Systemd | ✅ **BUILT** | Native s390x compilation complete |
 | Bash | ❌ TODO | Needs s390x build |
 | GNU Coreutils | ❌ TODO | Replace busybox applets |
 
@@ -64,15 +70,20 @@ s390x-archlinux-dev          # All-in-one development container
 - `make all` - Build complete system (kernel + initramfs)
 - `make kernel` - Cross-compile Arch Linux kernel for s390x
 - `make initramfs` - Generate initramfs with mkinitcpio
+- `make systemd` - Build systemd natively on z/VM
 - `make test` - Test initramfs-only system with QEMU
 - `make test-rootfs` - Test with root filesystem switching
+- `make test-systemd` - Test with systemd as init
 - `make clean` - Clean build artifacts
 
 ### Key Scripts:
 - `scripts/build-arch-kernel.sh` - Cross-compile Arch Linux kernel
 - `scripts/build-initramfs-final.sh` - Generate initramfs
+- `scripts/build-systemd-zvm.sh` - Build systemd on z/VM
+- `scripts/deploy-and-build-systemd-zvm.sh` - Orchestrate systemd build
 - `scripts/run-qemu-initramfs-only.sh` - Test initramfs-only system
 - `scripts/test-qemu-rootfs.sh` - Test with root filesystem
+- `scripts/test-qemu-systemd.sh` - Test with systemd as init
 - `scripts/build-busybox-zvm.sh` - Build static busybox on z/VM
 
 ## Testing

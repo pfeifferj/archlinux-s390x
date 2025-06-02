@@ -11,7 +11,7 @@ BUSYBOX := $(BOOT_DIR)/busybox-s390x-native
 BOOT_KERNEL := $(BOOT_DIR)/vmlinuz-linux
 BOOT_INITRAMFS := $(BOOT_DIR)/initramfs-linux.img
 
-.PHONY: all kernel build-busybox busybox initramfs boot test test-rootfs clean help container
+.PHONY: all kernel build-busybox busybox initramfs boot test test-rootfs test-systemd clean help container systemd-zvm systemd
 
 # Default target
 all: boot
@@ -96,12 +96,33 @@ test-rootfs:
 	@echo "Testing s390x system with root filesystem..."
 	@./scripts/test-qemu-rootfs.sh
 
+# Test with systemd as init
+test-systemd:
+	@if [ ! -f "$(BOOT_DIR)/vmlinuz-linux" ] || [ ! -f "$(BOOT_DIR)/initramfs-linux.img" ]; then \
+		echo "Error: Boot files not found. Run 'make all' first"; \
+		exit 1; \
+	fi
+	@if [ ! -d "output/systemd-root" ]; then \
+		echo "Error: Systemd not found. Run 'make systemd' first"; \
+		exit 1; \
+	fi
+	@echo "Testing s390x system with systemd..."
+	@./scripts/test-qemu-systemd.sh
+
 # Create directories
 $(OUTPUT_DIR):
 	@mkdir -p $@
 
 boot-dir:
 	@mkdir -p $(BOOT_DIR)
+
+# Build systemd on z/VM (native s390x compilation)
+systemd-zvm:
+	@echo "Building systemd on z/VM..."
+	@./scripts/deploy-and-build-systemd-zvm.sh
+
+# Build systemd (alias for z/VM build)
+systemd: systemd-zvm
 
 # Clean build artifacts
 clean:
@@ -126,6 +147,9 @@ help:
 	@echo "  container      - Build development container"
 	@echo "  test           - Test with QEMU s390x emulation (initramfs only)"
 	@echo "  test-rootfs    - Test with QEMU and minimal root filesystem"
+	@echo "  test-systemd   - Test with QEMU and systemd as init"
+	@echo "  systemd        - Build minimal systemd on z/VM (native s390x)"
+	@echo "  systemd-zvm    - Build minimal systemd on z/VM (native s390x)"
 	@echo "  clean          - Remove build artifacts"
 	@echo "  help           - Show this help message"
 	@echo ""
