@@ -44,6 +44,9 @@ LINUX KERNEL:
 - Linux kernel s390x build based on upstream kernel
 - Licensed under GNU General Public License v2
 - Source: https://www.kernel.org/
+- Includes patches from Arch Linux kernel package
+- Arch Linux kernel PKGBUILD and patches: https://gitlab.archlinux.org/archlinux/packaging/packages/linux
+- Copyright (C) Arch Linux developers for kernel patches and configuration
 
 GPL COMPLIANCE:
 This distribution includes GPL-licensed software. The complete source code

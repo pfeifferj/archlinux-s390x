@@ -135,75 +135,7 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: Arch Linux s390x ${{ github.event.inputs.version }}
           body: |
-            # Arch Linux s390x Port - ${{ github.event.inputs.version }}
-            
-            **🎉 First successful Arch Linux port to IBM s390x mainframe architecture!**
-            
             ${{ github.event.inputs.release_notes }}
-            
-            ## 📊 Build Information
-            
-            - **Kernel Version**: ${{ env.KERNEL_VERSION }} (${{ env.KERNEL_SIZE }})
-            - **Initramfs**: ${{ env.INITRAMFS_SIZE }} with native s390x binaries
-            - **Busybox Version**: ${{ env.BUSYBOX_VERSION }} (statically compiled on z/VM)
-            - **Architecture**: IBM s390x (big-endian mainframe)
-            - **Status**: ✅ **Fully functional** - boots to emergency shell
-            
-            ## 📦 Release Contents
-            
-            This release includes:
-            - **vmlinuz-linux-s390x**: Bootable Linux kernel for s390x architecture
-            - **initramfs-linux-s390x.img**: Complete initramfs with s390x busybox and utilities
-            - **busybox-s390x-static**: Static busybox binary (2.3MB, built on z/VM)
-            - **Boot configuration files**: IPL configuration for s390x mainframes
-            - **BUILD_INFO.txt**: Detailed build information
-            - **SHA256SUMS**: Checksums for all artifacts
-            
-            ## 🚀 Quick Start
-            
-            ### Test with QEMU s390x:
-            ```bash
-            # Download and extract
-            tar -xzf archlinux-s390x-${{ github.event.inputs.version }}.tar.gz
-            
-            # Install QEMU s390x emulation
-            sudo pacman -S qemu-system-s390x  # Arch Linux
-            # or
-            sudo apt install qemu-system-s390x  # Ubuntu/Debian
-            
-            # Run the system
-            qemu-system-s390x \
-              -machine s390-ccw-virtio \
-              -cpu max \
-              -m 2G \
-              -kernel vmlinuz-linux-s390x \
-              -initrd initramfs-linux-s390x.img \
-              -append "console=ttyS0 init=/init" \
-              -nographic
-            ```
-            
-            ### Deploy to real IBM mainframe:
-            - Use the provided IPL configuration files
-            - Boot files are ready for z/VM or LPAR deployment
-            
-            ## ✅ What Works
-            
-            - **Complete boot chain**: IPL → kernel → initramfs → emergency shell
-            - **Native s390x binaries**: All components built for mainframe architecture
-            - **Filesystem operations**: Mount, unmount, and basic file operations via busybox
-            - **IBM hardware support**: DASD, QETH, channel I/O drivers included
-            - **Console access**: Both 3215 and 3270 terminal support
-            
-            ## 🔧 Technical Achievements
-            
-            - **Cross-compilation infrastructure**: Fedora containers with s390x toolchain
-            - **mkinitcpio adaptation**: Modified for cross-architecture initramfs building  
-            - **Static linking solution**: z/VM native compilation eliminates dynamic library issues
-            - **Architecture compatibility**: Pure s390x environment without x86_64 contamination
-            
-            ---
-            
-            *This represents a major milestone in porting Linux distributions to IBM mainframe architecture!*
           draft: false
           prerelease: false
           files: |

@@ -5,7 +5,7 @@ OUTPUT_DIR := output
 BOOT_DIR := boot
 
 # Output files
-KERNEL := $(OUTPUT_DIR)/arch/s390/boot/bzImage
+KERNEL := $(OUTPUT_DIR)/vmlinuz-6.6.10-s390x-arch
 INITRAMFS := $(OUTPUT_DIR)/initramfs-6.6.10-s390x.img
 BUSYBOX := $(BOOT_DIR)/busybox-s390x-native
 BOOT_KERNEL := $(BOOT_DIR)/vmlinuz-linux
@@ -16,10 +16,10 @@ BOOT_INITRAMFS := $(BOOT_DIR)/initramfs-linux.img
 # Default target
 all: boot
 
-# Build kernel
+# Build Arch Linux kernel with patches
 $(KERNEL): | $(OUTPUT_DIR)
-	@echo "Building s390x kernel..."
-	@./scripts/build-kernel-container.sh
+	@echo "Building Arch Linux kernel for s390x..."
+	@./scripts/build-arch-kernel.sh
 
 kernel: $(KERNEL)
 
@@ -118,7 +118,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all            - Build everything (kernel + initramfs + boot)"
-	@echo "  kernel         - Build s390x kernel only"
+	@echo "  kernel         - Build Arch Linux kernel with patches for s390x"
 	@echo "  build-busybox  - Check for static s390x busybox (must be built on z/VM)"
 	@echo "  busybox        - Check s390x busybox binary exists"
 	@echo "  initramfs      - Build initramfs only (requires busybox)"

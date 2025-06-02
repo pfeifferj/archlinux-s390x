@@ -45,6 +45,9 @@ mkinitcpio-source/
 *.cache
 build/
 
+# Arch kernel source (downloaded during build)
+arch-kernel/linux/
+
 # Extracted initramfs contents (debug files)
 bin
 sbin

@@ -17,7 +17,7 @@ make test-rootfs
 
 ## What's Working
 
-- **s390x Kernel**: Linux 6.6.10 cross-compiled for IBM mainframes (11MB)
+- **Arch Linux Kernel**: Linux 6.6.10 with Arch patches cross-compiled for IBM mainframes (5.8MB)
 - **Initramfs**: Complete 5.9MB initramfs with s390x busybox
 - **Boot Process**: Successful boot to root filesystem with busybox shell
 - **Root Filesystem**: **COMPLETE!** 100MB ext4 root filesystem with Arch Linux identification
@@ -29,7 +29,7 @@ make test-rootfs
 ### Core System Components
 | Component | Status | Details |
 |-----------|--------|---------|
-| Kernel | ✅ Working | 11MB bootable s390x kernel (vanilla 6.6.10) |
+| Kernel | ✅ Working | 5.8MB bootable s390x kernel with Arch patches (6.6.10) |
 | Initramfs | ✅ Working | 5.9MB with native s390x binaries |
 | Boot Process | ✅ Working | IPL → kernel → initramfs → root filesystem |
 | Root Filesystem | ✅ **COMPLETE** | 100MB ext4 with working busybox switch_root |
@@ -45,7 +45,6 @@ make test-rootfs
 | Systemd | ❌ TODO | Requires cross-compilation |
 | Bash | ❌ TODO | Needs s390x build |
 | GNU Coreutils | ❌ TODO | Replace busybox applets |
-| Arch Kernel Patches | ❌ TODO | Apply Arch-specific patches |
 
 ### Legend
 - ✅ **Complete** - Fully working
@@ -63,14 +62,14 @@ s390x-archlinux-dev          # All-in-one development container
 
 ### Build Targets:
 - `make all` - Build complete system (kernel + initramfs)
-- `make kernel` - Cross-compile s390x kernel only
+- `make kernel` - Cross-compile Arch Linux kernel for s390x
 - `make initramfs` - Generate initramfs with mkinitcpio
 - `make test` - Test initramfs-only system with QEMU
 - `make test-rootfs` - Test with root filesystem switching
 - `make clean` - Clean build artifacts
 
 ### Key Scripts:
-- `scripts/build-kernel-container.sh` - Cross-compile kernel
+- `scripts/build-arch-kernel.sh` - Cross-compile Arch Linux kernel
 - `scripts/build-initramfs-final.sh` - Generate initramfs
 - `scripts/run-qemu-initramfs-only.sh` - Test initramfs-only system
 - `scripts/test-qemu-rootfs.sh` - Test with root filesystem

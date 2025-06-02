@@ -16,8 +16,17 @@ NC='\033[0m'
 
 echo -e "${GREEN}=== Preparing s390x boot directory ===${NC}"
 
-# Check if kernel exists
-if [ ! -f "$OUTPUT_DIR/vmlinuz-${KERNEL_VERSION}-s390x" ]; then
+# Check if kernel exists - try Arch kernel first, then vanilla
+KERNEL=""
+for k in "$OUTPUT_DIR/vmlinuz-${KERNEL_VERSION}-s390x-arch" \
+         "$OUTPUT_DIR/vmlinuz-${KERNEL_VERSION}-s390x"; do
+    if [ -f "$k" ]; then
+        KERNEL="$k"
+        break
+    fi
+done
+
+if [ -z "$KERNEL" ]; then
     echo -e "${RED}Error: Kernel not found. Run 'make kernel' first${NC}"
     exit 1
 fi
@@ -38,8 +47,8 @@ if [ -z "$INITRAMFS" ]; then
 fi
 
 # Copy kernel to boot directory
-echo -e "${YELLOW}Copying kernel...${NC}"
-cp "$OUTPUT_DIR/vmlinuz-${KERNEL_VERSION}-s390x" "$BOOT_DIR/vmlinuz-linux"
+echo -e "${YELLOW}Copying kernel: $(basename "$KERNEL")${NC}"
+cp "$KERNEL" "$BOOT_DIR/vmlinuz-linux"
 
 # Copy initramfs to boot directory
 echo -e "${YELLOW}Copying initramfs...${NC}"
