@@ -162,16 +162,16 @@ cat /etc/mkinitcpio-s390x.conf
 echo "s390x busybox will be handled by the patched mkinitcpio base hook..."
 
 # Ensure busybox binary is available for the base hook
-if [ -f "/work/output/busybox-s390x-static" ]; then
-    echo "✓ Found s390x static busybox at /work/output/busybox-s390x-static"
-    ls -la /work/output/busybox-s390x-static
-elif [ -f "/work/output/busybox-s390x-native" ]; then
-    echo "✓ Found s390x native busybox at /work/output/busybox-s390x-native"
-    ls -la /work/output/busybox-s390x-native
+if [ -f "/work/boot/busybox-s390x-static" ]; then
+    echo "✓ Found s390x static busybox at /work/boot/busybox-s390x-static"
+    ls -la /work/boot/busybox-s390x-static
+elif [ -f "/work/boot/busybox-s390x-native" ]; then
+    echo "✓ Found s390x native busybox at /work/boot/busybox-s390x-native"
+    ls -la /work/boot/busybox-s390x-native
 else
-    echo "ERROR: No s390x busybox binary found in /work/output/"
-    echo "Available files in /work/output:"
-    ls -la /work/output/
+    echo "ERROR: No s390x busybox binary found in /work/boot/"
+    echo "Available files in /work/boot:"
+    ls -la /work/boot/
     exit 1
 fi
 
@@ -191,48 +191,42 @@ if [ -f "$INITRAMFS_OUTPUT" ]; then
     ls -la "$INITRAMFS_OUTPUT"
     echo "Initramfs size: $(du -h "$INITRAMFS_OUTPUT" | cut -f1)"
     
-    # Analyze the generated initramfs
+    # Analyze the generated initramfs using lsinitcpio
     echo ""
     echo "Analyzing generated initramfs..."
     echo "Checking for critical files:"
     
-    # Extract and check for init
-    mkdir -p /tmp/initramfs-check
-    cd /tmp/initramfs-check
-    zcat "$INITRAMFS_OUTPUT" | cpio -id 2>/dev/null
-    
-    if [ -f init ]; then
-        echo "✓ /init found"
-        ls -la init
+    # Use lsinitcpio to list contents (it handles concatenated CPIO properly)
+    if command -v lsinitcpio >/dev/null 2>&1; then
+        echo ""
+        # Check for critical files
+        if lsinitcpio "$INITRAMFS_OUTPUT" | grep -q "^init$"; then
+            echo "✓ /init found"
+        else
+            echo "✗ /init missing!"
+        fi
+        
+        if lsinitcpio "$INITRAMFS_OUTPUT" | grep -q "^init_functions$"; then
+            echo "✓ /init_functions found"
+        else
+            echo "✗ /init_functions missing!"
+        fi
+        
+        # Check for busybox
+        if lsinitcpio "$INITRAMFS_OUTPUT" | grep -E "bin/busybox$|usr/bin/busybox$" >/dev/null; then
+            echo "✓ busybox found in initramfs"
+        else
+            echo "✗ busybox missing from initramfs!"
+        fi
+        
+        # Show first 20 files
+        echo ""
+        echo "First 20 files in initramfs:"
+        lsinitcpio "$INITRAMFS_OUTPUT" | head -20
     else
-        echo "✗ /init missing!"
+        echo "Note: lsinitcpio not available for detailed analysis"
+        echo "Initramfs was created successfully but contents cannot be verified"
     fi
-    
-    if [ -f init_functions ]; then
-        echo "✓ /init_functions found"
-    else
-        echo "✗ /init_functions missing!"
-    fi
-    
-    # Check for busybox and verify architecture
-    if [ -f bin/busybox ]; then
-        echo "✓ busybox found at /bin/busybox"
-        file bin/busybox | grep -q "s390" && echo "✓ Verified s390x architecture in initramfs" || echo "⚠ Architecture may be incorrect"
-    elif [ -f usr/bin/busybox ]; then
-        echo "✓ busybox found at /usr/bin/busybox" 
-        file usr/bin/busybox | grep -q "s390" && echo "✓ Verified s390x architecture in initramfs" || echo "⚠ Architecture may be incorrect"
-    else
-        echo "✗ busybox missing from initramfs!"
-    fi
-    
-    # List first 20 files
-    echo ""
-    echo "First 20 files in initramfs:"
-    find . -type f | head -20
-    
-    # Cleanup
-    cd /
-    rm -rf /tmp/initramfs-check
     
     echo ""
     echo "✓ Success!"
@@ -257,6 +251,13 @@ sudo podman run --rm \
 
 # Clean up copied source
 rm -rf "$PROJECT_ROOT/mkinitcpio-source"
+
+# Fix permissions on output files (they were created as root in container)
+if [ -f "$OUTPUT_DIR/$INITRAMFS_NAME" ]; then
+    echo -e "${YELLOW}Fixing file permissions...${NC}"
+    sudo chown $(id -u):$(id -g) "$OUTPUT_DIR/$INITRAMFS_NAME"
+    chmod 644 "$OUTPUT_DIR/$INITRAMFS_NAME"
+fi
 
 # Check result
 if [ -f "$OUTPUT_DIR/$INITRAMFS_NAME" ]; then

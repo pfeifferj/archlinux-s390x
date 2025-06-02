@@ -5,10 +5,12 @@
 build() {
     local applet
     
+    echo "=== S390X BASE HOOK STARTING ==="
+    
     # Use s390x busybox binary if available (cross-architecture support)
-    if [[ -f "/work/output/busybox-s390x-static" ]]; then
+    if [[ -f "/work/boot/busybox-s390x-static" ]]; then
         echo "Using s390x static busybox binary"
-        add_file "/work/output/busybox-s390x-static" "/bin/busybox" 755
+        add_file "/work/boot/busybox-s390x-static" "/usr/bin/busybox" 755
         
         # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
         local busybox_applets=(
@@ -16,16 +18,19 @@ build() {
             "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
             "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
             "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
-            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
+            "sed" "sh" "sleep" "sort" "stat" "switch_root" "tail" "tar" "test" "touch" "tr"
             "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
         )
         
         for applet in "${busybox_applets[@]}"; do
             add_symlink "/usr/bin/$applet" busybox
         done
-    elif [[ -f "/work/output/busybox-s390x-native" ]]; then
+        
+        # Manually add switch_root symlink (critical for root filesystem switching)
+        add_symlink "/usr/bin/switch_root" busybox
+    elif [[ -f "/work/boot/busybox-s390x-native" ]]; then
         echo "Using s390x busybox binary"
-        add_file "/work/output/busybox-s390x-native" "/bin/busybox" 755
+        add_file "/work/boot/busybox-s390x-native" "/usr/bin/busybox" 755
         
         # Create symlinks for busybox applets (using a known list since we can't execute cross-arch binary)
         local busybox_applets=(
@@ -33,13 +38,16 @@ build() {
             "date" "dd" "df" "dirname" "dmesg" "du" "echo" "env" "expr" "false"
             "find" "grep" "head" "hostname" "id" "kill" "ln" "ls" "mkdir" "mknod"
             "mktemp" "mount" "mv" "printf" "ps" "pwd" "readlink" "rm" "rmdir"
-            "sed" "sh" "sleep" "sort" "stat" "tail" "tar" "test" "touch" "tr"
+            "sed" "sh" "sleep" "sort" "stat" "switch_root" "tail" "tar" "test" "touch" "tr"
             "true" "umount" "uname" "uniq" "wc" "which" "whoami" "xargs"
         )
         
         for applet in "${busybox_applets[@]}"; do
             add_symlink "/usr/bin/$applet" busybox
         done
+        
+        # Manually add switch_root symlink (critical for root filesystem switching)
+        add_symlink "/usr/bin/switch_root" busybox
     else
         echo "Warning: s390x busybox not found, using system busybox (may cause architecture mismatch)"
         # Try to find busybox in various locations
@@ -71,7 +79,8 @@ build() {
     fi
 
     # Check for additional utilities (may not be available in cross-compile environment)
-    for binary in blkid mount umount switch_root; do
+    # IMPORTANT: Skip mount/umount as they should come from busybox to avoid arch mismatch
+    for binary in blkid switch_root; do
         if type -P "$binary" >/dev/null 2>&1; then
             echo "Adding $binary"
             add_binary "$binary"
@@ -80,10 +89,45 @@ build() {
         fi
     done
 
+    # Ensure switch_root symlink exists (critical for root filesystem switching)
+    echo "Ensuring switch_root symlink..."
+    add_symlink "/usr/bin/switch_root" busybox
+
     # Always add init files
     echo "Adding init files..."
-    add_file "/usr/lib/initcpio/init_functions" "/init_functions"
-    add_file "/usr/lib/initcpio/init" "/init" 755
+    # Check both lib and lib64 locations for init files
+    if [[ -f /usr/lib/initcpio/init_functions ]]; then
+        add_file "/usr/lib/initcpio/init_functions" "/init_functions" 644
+    elif [[ -f /usr/lib64/initcpio/init_functions ]]; then
+        add_file "/usr/lib64/initcpio/init_functions" "/init_functions" 644
+    else
+        echo "ERROR: init_functions not found in /usr/lib/initcpio or /usr/lib64/initcpio"
+        return 1
+    fi
+    
+    # Use standard Arch init but patch the switch_root call
+    echo "Patching standard init script for s390x..."
+    
+    # Copy the standard init and patch it
+    if [[ -f /usr/lib/initcpio/init ]]; then
+        cp /usr/lib/initcpio/init /tmp/s390x_init
+    elif [[ -f /usr/lib64/initcpio/init ]]; then
+        cp /usr/lib64/initcpio/init /tmp/s390x_init
+    else
+        echo "ERROR: Standard init not found"
+        return 1
+    fi
+    
+    # Patch the switch_root line to use busybox
+    sed -i 's|/usr/bin/switch_root|/usr/bin/busybox switch_root|g' /tmp/s390x_init
+    
+    # Add debug break when udevadm fails - use a more aggressive replacement
+    sed -i 's|udevadm settle|echo ":: udevadm not available, dropping to shell"; /bin/sh|g' /tmp/s390x_init
+    
+    # Add the patched init script to the initramfs
+    add_file "/tmp/s390x_init" "/init" 755
+    echo "✓ Standard Arch init patched for s390x (switch_root -> busybox switch_root)"
+    echo "=== S390X BASE HOOK COMPLETED ==="
 }
 
 help() {

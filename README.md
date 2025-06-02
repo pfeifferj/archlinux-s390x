@@ -1,51 +1,80 @@
 # Arch Linux s390x Port 
 
-**Successfully ported Arch Linux to IBM s390x mainframe architecture!**
-
-This repository contains a working s390x Arch Linux system that boots successfully on IBM mainframes and QEMU emulation.
+This repository contains a **complete, working** s390x Arch Linux system with full root filesystem support that boots successfully on IBM mainframes and QEMU emulation.
 
 ## Quick Start
 
 ```bash
 # Build everything
-scripts/build-all.sh
+make all
 
-# Test in QEMU
-scripts/run-qemu-initramfs-only.sh
+# Test initramfs-only system
+make test
+
+# Test with root filesystem
+make test-rootfs
 ```
 
 ## What's Working
 
 - **s390x Kernel**: Linux 6.6.10 cross-compiled for IBM mainframes (11MB)
-- **Initramfs**: Complete 5.3MB initramfs with s390x busybox
-- **Boot Process**: Successful boot to emergency shell
+- **Initramfs**: Complete 5.9MB initramfs with s390x busybox
+- **Boot Process**: Successful boot to root filesystem with busybox shell
+- **Root Filesystem**: **COMPLETE!** 100MB ext4 root filesystem with Arch Linux identification
 - **QEMU Testing**: Fully functional in s390x emulation
 - **Ready for Hardware**: IPL configuration for real mainframes
 
 ## Build Status
 
+### Core System Components
 | Component | Status | Details |
 |-----------|--------|---------|
-| Kernel | ✅ Working | 11MB bootable s390x kernel |
-| Initramfs | ✅ Working | 5.3MB with native s390x binaries |
-| Boot | ✅ Working | Reaches emergency shell successfully |
+| Kernel | ✅ Working | 11MB bootable s390x kernel (vanilla 6.6.10) |
+| Initramfs | ✅ Working | 5.9MB with native s390x binaries |
+| Boot Process | ✅ Working | IPL → kernel → initramfs → root filesystem |
+| Root Filesystem | ✅ **COMPLETE** | 100MB ext4 with working busybox switch_root |
 | mkinitcpio | ✅ Fixed | Adapted for s390x architecture |
+
+### Userspace Components
+| Component | Status | Details |
+|-----------|--------|---------|
+| Init System | 🟨 Minimal | Busybox init (not systemd) |
+| Shell | 🟨 Minimal | Busybox sh (not bash) |
+| Core Utilities | 🟨 Minimal | Busybox applets only |
+| Package Manager | ❌ TODO | Pacman needs porting |
+| Systemd | ❌ TODO | Requires cross-compilation |
+| Bash | ❌ TODO | Needs s390x build |
+| GNU Coreutils | ❌ TODO | Replace busybox applets |
+| Arch Kernel Patches | ❌ TODO | Apply Arch-specific patches |
+
+### Legend
+- ✅ **Complete** - Fully working
+- 🟨 **Minimal** - Working but minimal implementation
+- ❌ **TODO** - Not yet implemented
 
 ## Build System
 
 Uses **Fedora containers with Podman** for cross-compilation:
 
 ```bash
-# Container images:
-s390x-fedora-kernel          # Kernel compilation
+# Container image:
 s390x-archlinux-dev          # All-in-one development container
 ```
 
+### Build Targets:
+- `make all` - Build complete system (kernel + initramfs)
+- `make kernel` - Cross-compile s390x kernel only
+- `make initramfs` - Generate initramfs with mkinitcpio
+- `make test` - Test initramfs-only system with QEMU
+- `make test-rootfs` - Test with root filesystem switching
+- `make clean` - Clean build artifacts
+
 ### Key Scripts:
-- `scripts/build-all.sh` - Build complete system
 - `scripts/build-kernel-container.sh` - Cross-compile kernel
 - `scripts/build-initramfs-final.sh` - Generate initramfs
-- `scripts/run-qemu-initramfs-only.sh` - Test the system
+- `scripts/run-qemu-initramfs-only.sh` - Test initramfs-only system
+- `scripts/test-qemu-rootfs.sh` - Test with root filesystem
+- `scripts/build-busybox-zvm.sh` - Build static busybox on z/VM
 
 ## Testing
 
@@ -55,11 +84,16 @@ sudo pacman -S qemu-system-s390x  # Arch Linux
 # or
 sudo apt install qemu-system-s390x # Ubuntu/Debian
 
-# Run the system
-scripts/run-qemu-initramfs-only.sh
+# Test initramfs-only system
+make test
+
+# Test root filesystem switching
+make test-rootfs
 ```
 
-**Expected**: System boots to emergency shell (press Ctrl-A X to exit)
+**Expected**: 
+- `make test` - System boots to emergency shell in initramfs-only mode (press Ctrl-A X to exit)
+- `make test-rootfs` - Boots completely to root filesystem with busybox shell
 
 [![asciicast](https://asciinema.org/a/QVmnI1tyJjjFp4cps93qiTbM9.svg)](https://asciinema.org/a/QVmnI1tyJjjFp4cps93qiTbM9)
 
@@ -67,9 +101,11 @@ scripts/run-qemu-initramfs-only.sh
 
 After building:
 - `boot/vmlinuz-linux` - Ready-to-use s390x kernel
-- `boot/initramfs-linux.img` - Working initramfs
+- `boot/initramfs-linux.img` - Working initramfs  
+- `boot/rootfs-s390x.img` - Root filesystem image (created by test-rootfs)
 - `boot/generic.ins` - IPL configuration for real hardware
 - `boot/arch.prm` - Kernel parameters
+- `boot/busybox-s390x-static` - Static busybox binary built on z/VM
 
 ## Technical Details
 
@@ -79,35 +115,25 @@ After building:
 - Channel I/O subsystem drivers
 - mkinitcpio modified for cross-architecture builds
 
-### Key Fix Applied:
-Fixed mkinitcpio's `add_binary` vs `add_file` issue for init scripts, enabling successful boot without kernel panic.
+### Key Fixes Applied:
+1. **mkinitcpio adaptation** - Fixed `add_binary` vs `add_file` issue for init scripts
+2. **Static busybox** - Built natively on z/VM to eliminate dynamic linking
+3. **Architecture compatibility** - Fixed base hook to exclude x86_64 binaries
+4. **Init script patching** - Modified standard Arch init to use `busybox switch_root`
 
-## Known Minor Issues
+## System Boot Success
 
-1. **Mount binary PATH** - Busybox mount symlink needs PATH adjustment
-2. **No root filesystem** - Expected for initramfs-only mode
-3. **Module warnings** - Harmless kmod messages
+The system successfully boots from initramfs to root filesystem:
 
-These don't prevent boot and will be addressed in future updates.
+```
+[   22.867595] Run /init as init process
+:: mounting '/dev/vda' on real root
+[   23.131648] EXT4-fs (vda): mounted filesystem r/w with ordered data mode
+/ # cat /etc/os-release
+NAME="Arch Linux"
+PRETTY_NAME="Arch Linux"
+ID=arch
 
-## Next Steps
-
-This foundation enables:
-- Building Arch Linux packages for s390x
-- Creating full s390x repository
-- Native pacman package manager
-- Complete Arch Linux s390x distribution
-
-## Success!
-
-**This project proves Arch Linux can run on IBM s390x mainframes!**
-
-The system successfully:
-- Boots Linux kernel on s390x architecture
-- Loads native s390x initramfs
-- Provides working shell environment
-- Ready for real mainframe deployment
-
----
-
-*First successful Arch Linux port to IBM mainframe architecture!* 🚀
+/ # uname -a
+Linux arch 6.6.10 #14 SMP Mon Jun  2 14:59:34 UTC 2025 s390x GNU/Linux
+```

@@ -16,8 +16,8 @@ qemu-system-s390x \
     -machine s390-ccw-virtio \
     -cpu max \
     -m 2G \
-    -kernel "output/vmlinuz-6.6.10-s390x" \
-    -initrd "output/initramfs-6.6.10-s390x.img" \
+    -kernel "boot/vmlinuz-linux" \
+    -initrd "boot/initramfs-linux.img" \
     -append "console=ttyS0 rdinit=/init" \
     -nographic \
     -device virtio-net-ccw,netdev=net0 \

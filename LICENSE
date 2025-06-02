@@ -32,11 +32,13 @@ ARCH LINUX COMPONENTS:
 - Used and adapted for s390x architecture support
 
 BUSYBOX BINARY:
-- BusyBox v1.35.0 (output/busybox-s390x-native)
+- BusyBox v1.35.0 (boot/busybox-s390x-static)
 - Licensed under GNU General Public License v2
-- Source: https://busybox.net/downloads/busybox-1.35.0.tar.bz2
+- Binary compiled natively on IBM z/VM RHEL 9.6
+- Original source: https://busybox.net/downloads/busybox-1.35.0.tar.bz2
 - Copyright (C) 1998-2023 Erik Andersen, Rob Landley, Denys Vlasenko and others
 - Full BusyBox license: https://git.busybox.net/busybox/tree/LICENSE
+- Built with static linking for s390x architecture compatibility
 
 LINUX KERNEL:
 - Linux kernel s390x build based on upstream kernel

@@ -2,7 +2,7 @@ Arch Linux s390x Boot Directory
 ==============================
 
 Kernel Version: 6.6.10
-Build Date: Sat May 31 08:47:08 PM CEST 2025
+Build Date: Mon Jun  2 05:00:32 PM CEST 2025
 Architecture: s390x
 
 Files:
@@ -12,6 +12,11 @@ Files:
 - arch.prm: Kernel boot parameters
 - initrd.addrsize: Memory layout for initrd
 
+To boot on real s390x hardware:
+1. Transfer this boot directory to your z/VM or LPAR system
+2. Use FTP or SFTP to copy files to the target system
+3. IPL from the device containing these files
+4. For z/VM: Use the generic.ins file for IPL
+
 For QEMU testing:
   make test
-  
