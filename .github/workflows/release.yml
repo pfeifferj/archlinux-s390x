@@ -50,16 +50,15 @@ jobs:
           fi
       
       - name: Setup z/VM environment
+        env:
+          ZVM_HOST: ${{ secrets.ZVM_HOST }}
+          ZVM_USER: ${{ secrets.ZVM_USER }}
+          ZVM_SSH_KEY: ${{ secrets.ZVM_SSH_KEY }}
         run: |
-          # Load z/VM configuration from secret
-          echo "${{ secrets.ZVM_CONFIG }}" > .env.temp
-          source .env.temp
-          rm .env.temp
-          
           # Validate required variables
           if [ -z "$ZVM_HOST" ] || [ -z "$ZVM_USER" ] || [ -z "$ZVM_SSH_KEY" ]; then
             echo "Error: Missing required z/VM configuration"
-            echo "ZVM_CONFIG secret must contain: ZVM_HOST, ZVM_USER, ZVM_SSH_KEY"
+            echo "Required secrets: ZVM_HOST, ZVM_USER, ZVM_SSH_KEY"
             exit 1
           fi
           

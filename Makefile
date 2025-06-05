@@ -60,36 +60,35 @@ container:
 	@echo "Building s390x-archlinux-dev container..."
 	@./scripts/build-container.sh
 
-# Test with QEMU (assumes boot files already exist)
-test:
+# Common validation for test targets
+define check_boot_files
 	@if [ ! -f "$(BOOT_DIR)/vmlinuz-linux" ] || [ ! -f "$(BOOT_DIR)/initramfs-linux.img" ]; then \
 		echo "Error: Boot files not found. Run 'make all' first"; \
 		exit 1; \
 	fi
-	@echo "Testing s390x system with QEMU..."
-	@./scripts/run-qemu-initramfs-only.sh
+endef
 
-# Test with root filesystem (creates minimal rootfs and boots to it)
+# Test with QEMU (initramfs-only)
+test:
+	$(call check_boot_files)
+	@echo "Testing s390x system with QEMU (initramfs-only)..."
+	@./scripts/test-qemu.sh initramfs
+
+# Test with root filesystem
 test-rootfs:
-	@if [ ! -f "$(BOOT_DIR)/vmlinuz-linux" ] || [ ! -f "$(BOOT_DIR)/initramfs-linux.img" ]; then \
-		echo "Error: Boot files not found. Run 'make all' first"; \
-		exit 1; \
-	fi
+	$(call check_boot_files)
 	@echo "Testing s390x system with root filesystem..."
-	@./scripts/test-qemu-rootfs.sh
+	@./scripts/test-qemu.sh rootfs
 
 # Test with systemd as init
 test-systemd:
-	@if [ ! -f "$(BOOT_DIR)/vmlinuz-linux" ] || [ ! -f "$(BOOT_DIR)/initramfs-linux.img" ]; then \
-		echo "Error: Boot files not found. Run 'make all' first"; \
-		exit 1; \
-	fi
+	$(call check_boot_files)
 	@if [ ! -d "output/systemd-root" ]; then \
 		echo "Error: Systemd not found. Run 'make systemd' first"; \
 		exit 1; \
 	fi
 	@echo "Testing s390x system with systemd..."
-	@./scripts/test-qemu-systemd.sh
+	@./scripts/test-qemu.sh systemd
 
 # Create directories
 $(OUTPUT_DIR):

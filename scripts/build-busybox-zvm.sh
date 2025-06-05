@@ -1,9 +1,19 @@
 #!/bin/bash
 # Build static busybox on z/VM s390x RHEL system
+# SPDX-License-Identifier: GPL-2.0-only
 
-set -e
+# Source utilities (only common.sh since this runs on z/VM)
+if [ -f "scripts/common.sh" ]; then
+    source scripts/common.sh
+else
+    # Minimal logging for z/VM environment
+    log_info() { echo "[INFO] $1"; }
+    log_success() { echo "[SUCCESS] $1"; }
+    log_error() { echo "[ERROR] $1" >&2; }
+    die() { log_error "$1"; exit "${2:-1}"; }
+fi
 
-echo "Building static busybox on native s390x..."
+log_info "Building static busybox on native s390x..."
 
 # Install build dependencies
 sudo dnf install -y gcc make wget tar bzip2 glibc-static
