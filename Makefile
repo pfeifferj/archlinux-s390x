@@ -7,14 +7,13 @@ BOOT_DIR := boot
 # Output files
 KERNEL := $(OUTPUT_DIR)/vmlinuz-6.6.10-s390x-arch
 INITRAMFS := $(OUTPUT_DIR)/initramfs-6.6.10-s390x.img
-BUSYBOX := $(BOOT_DIR)/busybox-s390x-native
 BOOT_KERNEL := $(BOOT_DIR)/vmlinuz-linux
 BOOT_INITRAMFS := $(BOOT_DIR)/initramfs-linux.img
 
-.PHONY: all kernel build-busybox busybox initramfs boot test test-rootfs test-systemd clean help container systemd-zvm systemd
+.PHONY: all kernel busybox initramfs boot test test-rootfs test-systemd clean help container systemd
 
 # Default target
-all: boot
+all: boot systemd
 
 # Build Arch Linux kernel with patches
 $(KERNEL): | $(OUTPUT_DIR)
@@ -29,7 +28,7 @@ build-busybox: | $(BOOT_DIR)
 		echo "❌ ERROR: Static busybox not found!"; \
 		echo ""; \
 		echo "To build busybox, you must:"; \
-		echo "1. SSH into z/VM: ssh -i zvm.pem -o StrictHostKeyChecking=no linux1@148.100.77.9"; \
+		echo "1. SSH into z/VM: ssh -i zvm.pem -o StrictHostKeyChecking=no \$$ZVM_USER@\$$ZVM_HOST"; \
 		echo "2. Run the build script: ./scripts/build-busybox-zvm.sh"; \
 		echo "3. Transfer the resulting busybox binary back to: $(BOOT_DIR)/busybox-s390x-static"; \
 		echo ""; \
@@ -39,30 +38,13 @@ build-busybox: | $(BOOT_DIR)
 		echo "✅ Static busybox already exists at $(BOOT_DIR)/busybox-s390x-static"; \
 	fi
 
-# Download busybox fallback (deprecated - use z/VM build)
-download-busybox: | $(OUTPUT_DIR)
-	@echo "❌ Dynamic busybox download is deprecated"
-	@echo "Use z/VM static compilation instead:"
-	@echo "  ssh -i zvm.pem linux1@148.100.77.9"
-	@echo "  # Follow build-busybox-zvm.sh instructions"
-	@exit 1
 
-# Check busybox binary (prefers static build)
-$(BUSYBOX): | build-busybox
-	@if [ -f "$(BOOT_DIR)/busybox-s390x-static" ]; then \
-		ln -sf busybox-s390x-static $(BUSYBOX); \
-		echo "✅ Using static busybox"; \
-	elif [ -f "$(BUSYBOX)" ]; then \
-		echo "✅ Using existing busybox"; \
-	else \
-		echo "ERROR: No busybox binary found"; \
-		exit 1; \
-	fi
-
-busybox: $(BUSYBOX)
+# Check busybox binary (must be static build from z/VM)
+busybox: build-busybox
+	@echo "✅ Busybox check complete"
 
 # Build initramfs (depends on busybox)
-$(INITRAMFS): $(BUSYBOX) | $(OUTPUT_DIR)
+$(INITRAMFS): busybox | $(OUTPUT_DIR)
 	@echo "Building initramfs with mkinitcpio..."
 	@./scripts/build-initramfs-final.sh
 
@@ -127,8 +109,13 @@ systemd: systemd-zvm
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf $(OUTPUT_DIR)/*
-	@rm -f $(BOOT_KERNEL) $(BOOT_INITRAMFS)
+	@if [ -d "$(OUTPUT_DIR)" ]; then \
+		if ! rm -rf $(OUTPUT_DIR)/* 2>/dev/null; then \
+			echo "Permission denied. Trying with sudo..."; \
+			sudo rm -rf $(OUTPUT_DIR)/*; \
+		fi; \
+	fi
+	@rm -f $(BOOT_KERNEL) $(BOOT_INITRAMFS) 2>/dev/null || true
 	@echo "Clean complete."
 
 # Show help
@@ -138,18 +125,16 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all            - Build everything (kernel + initramfs + boot)"
+	@echo "  all            - Build everything (kernel + initramfs + systemd)"
 	@echo "  kernel         - Build Arch Linux kernel with patches for s390x"
-	@echo "  build-busybox  - Check for static s390x busybox (must be built on z/VM)"
-	@echo "  busybox        - Check s390x busybox binary exists"
+	@echo "  busybox        - Check for static s390x busybox (must be built on z/VM)"
 	@echo "  initramfs      - Build initramfs only (requires busybox)"
 	@echo "  boot           - Prepare boot directory"
 	@echo "  container      - Build development container"
+	@echo "  systemd        - Build minimal systemd on z/VM (native s390x)"
 	@echo "  test           - Test with QEMU s390x emulation (initramfs only)"
 	@echo "  test-rootfs    - Test with QEMU and minimal root filesystem"
 	@echo "  test-systemd   - Test with QEMU and systemd as init"
-	@echo "  systemd        - Build minimal systemd on z/VM (native s390x)"
-	@echo "  systemd-zvm    - Build minimal systemd on z/VM (native s390x)"
 	@echo "  clean          - Remove build artifacts"
 	@echo "  help           - Show this help message"
 	@echo ""

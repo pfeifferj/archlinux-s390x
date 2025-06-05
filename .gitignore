@@ -35,7 +35,6 @@ temp-initramfs/
 tmp-initramfs/
 build-kernel/
 
-# Temporary build scripts
 build-final-initramfs.sh
 
 # Linked mkinitcpio repository
@@ -72,8 +71,9 @@ VERSION
 CLAUDE.md
 PROJECT_SUMMARY.md
 
-# Sec
+# Security
 *.pem
+.env
 
 # Test artifacts
 boot/rootfs-s390x.img

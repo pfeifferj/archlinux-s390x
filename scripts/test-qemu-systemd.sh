@@ -51,6 +51,8 @@ sudo cp -r output/systemd-root/* /tmp/rootfs-mount/
 sudo mkdir -p /tmp/rootfs-mount/run/systemd
 sudo mkdir -p /tmp/rootfs-mount/var/log/journal
 sudo mkdir -p /tmp/rootfs-mount/etc/systemd/system
+sudo mkdir -p /tmp/rootfs-mount/sys
+sudo mkdir -p /tmp/rootfs-mount/proc
 
 # Create device nodes
 sudo mknod /tmp/rootfs-mount/dev/console c 5 1 2>/dev/null || true

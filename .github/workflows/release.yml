@@ -37,9 +37,9 @@ jobs:
             echo "❌ ERROR: Static busybox not found!"
             echo ""
             echo "To build a release, you must first:"
-            echo "1. SSH into z/VM: ssh -i zvm.pem -o StrictHostKeyChecking=no linux1@148.100.77.9"
+            echo "1. SSH into z/VM: ssh -i zvm.pem -o StrictHostKeyChecking=no \$ZVM_USER@\$ZVM_HOST"
             echo "2. Run the build script: ./scripts/build-busybox-zvm.sh"
-            echo "3. Transfer the busybox binary: scp -i zvm.pem linux1@148.100.77.9:~/busybox-s390x-static boot/"
+            echo "3. Transfer the busybox binary: scp -i zvm.pem \$ZVM_USER@\$ZVM_HOST:~/busybox-s390x-static boot/"
             echo "4. Commit the busybox binary to the repository"
             echo ""
             echo "The busybox MUST be built natively on s390x hardware for proper static linking."
@@ -49,10 +49,46 @@ jobs:
             ls -la boot/busybox-s390x-static
           fi
       
+      - name: Setup z/VM environment
+        run: |
+          # Load z/VM configuration from secret
+          echo "${{ secrets.ZVM_CONFIG }}" > .env.temp
+          source .env.temp
+          rm .env.temp
+          
+          # Validate required variables
+          if [ -z "$ZVM_HOST" ] || [ -z "$ZVM_USER" ] || [ -z "$ZVM_SSH_KEY" ]; then
+            echo "Error: Missing required z/VM configuration"
+            echo "ZVM_CONFIG secret must contain: ZVM_HOST, ZVM_USER, ZVM_SSH_KEY"
+            exit 1
+          fi
+          
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$ZVM_SSH_KEY" > zvm.pem
+          chmod 600 zvm.pem
+          ssh-keyscan -H $ZVM_HOST >> ~/.ssh/known_hosts
+          
+          # Export for later steps
+          echo "ZVM_HOST=$ZVM_HOST" >> $GITHUB_ENV
+          echo "ZVM_USER=$ZVM_USER" >> $GITHUB_ENV
+          echo "ZVM_PORT=${ZVM_PORT:-22}" >> $GITHUB_ENV
+          echo "SSH_CONNECT_TIMEOUT=${SSH_CONNECT_TIMEOUT:-10}" >> $GITHUB_ENV
+        
+      - name: Test z/VM connectivity
+        run: |
+          ssh -i zvm.pem -o ConnectTimeout=$SSH_CONNECT_TIMEOUT $ZVM_USER@$ZVM_HOST "echo 'z/VM connection successful'"
+        
       - name: Build complete system
         run: |
           echo "Building s390x kernel and creating initramfs..."
           make all
+          
+      - name: Build systemd on z/VM
+        run: |
+          echo "Building systemd natively on z/VM..."
+          make systemd-zvm
+        timeout-minutes: 30
       
       - name: Prepare release artifacts
         run: |
@@ -88,10 +124,23 @@ jobs:
           # Copy busybox binary
           cp boot/busybox-s390x-static release-artifacts/
           
+          # Copy systemd artifacts if available
+          if [ -d "output/systemd-root" ]; then
+            echo "✅ Systemd found, including in release"
+            tar -czf release-artifacts/systemd-s390x.tar.gz -C output/systemd-root .
+            cp output/systemd-minimal-s390x.tar.gz release-artifacts/ 2>/dev/null || true
+          else
+            echo "⚠️ Systemd not found, release will be kernel + initramfs only"
+          fi
+          
           # Get actual sizes
           KERNEL_SIZE=$(du -h boot/vmlinuz-linux | cut -f1)
           INITRAMFS_SIZE=$(du -h boot/initramfs-linux.img | cut -f1)
           BUSYBOX_SIZE=$(du -h boot/busybox-s390x-static | cut -f1)
+          SYSTEMD_SIZE=""
+          if [ -f "release-artifacts/systemd-s390x.tar.gz" ]; then
+            SYSTEMD_SIZE=$(du -h release-artifacts/systemd-s390x.tar.gz | cut -f1)
+          fi
           
           # Create build info file
           cat > release-artifacts/BUILD_INFO.txt << EOF
@@ -105,14 +154,21 @@ jobs:
           Component Sizes:
           - Kernel: $KERNEL_SIZE
           - Initramfs: $INITRAMFS_SIZE  
-          - Busybox: $BUSYBOX_SIZE
+          - Busybox: $BUSYBOX_SIZE$(if [ -n "$SYSTEMD_SIZE" ]; then echo "
+          - Systemd: $SYSTEMD_SIZE"; fi)
           
           Build Method:
-          - Kernel: Cross-compiled in Fedora container
+          - Kernel: Cross-compiled in Fedora container with CONFIG_UNIX and CONFIG_KMOD
           - Busybox: Statically compiled on z/VM RHEL 9.6
-          - Initramfs: Generated with modified mkinitcpio
+          - Initramfs: Generated with modified mkinitcpio for s390x$(if [ -n "$SYSTEMD_SIZE" ]; then echo "
+          - Systemd: Natively compiled on IBM z/VM with mount/udevadm utilities"; fi)
           
-          Status: Fully functional - boots to emergency shell
+          Status: $(if [ -n "$SYSTEMD_SIZE" ]; then echo "Fully functional - boots with systemd to 'Welcome to Arch Linux!'"; else echo "Fully functional - boots to emergency shell"; fi)
+          
+          Boot Targets Available:
+          - make test: Initramfs-only system
+          - make test-rootfs: Root filesystem with busybox init$(if [ -n "$SYSTEMD_SIZE" ]; then echo "
+          - make test-systemd: Full systemd boot with modern init system"; fi)
           EOF
           
           # Create checksums
@@ -143,6 +199,8 @@ jobs:
             release-artifacts/vmlinuz-linux-s390x
             release-artifacts/initramfs-linux-s390x.img
             release-artifacts/busybox-s390x-static
+            release-artifacts/systemd-s390x.tar.gz
+            release-artifacts/systemd-minimal-s390x.tar.gz
             release-artifacts/BUILD_INFO.txt
             release-artifacts/SHA256SUMS
         env:

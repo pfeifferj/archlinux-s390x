@@ -20,12 +20,12 @@ make test-systemd
 
 ## What's Working
 
-- **Arch Linux Kernel**: Linux 6.6.10 with Arch patches cross-compiled for IBM mainframes (5.8MB)
+- **Arch Linux Kernel**: Linux 6.6.10 with Arch patches and CONFIG_UNIX/CONFIG_KMOD support (5.8MB)
 - **Initramfs**: Complete 5.9MB initramfs with s390x busybox
 - **Boot Process**: Successful boot to root filesystem with busybox shell
 - **Root Filesystem**: **COMPLETE!** 150MB ext4 root filesystem with Arch Linux identification
-- **Systemd**: **NEW!** 42MB minimal systemd built natively on IBM z/VM
-- **Modern Init**: Systemd components ready for enterprise mainframe deployment
+- **Systemd**: **WORKING!** 42MB minimal systemd with mount/udevadm utilities - boots to "Welcome to Arch Linux!"
+- **Modern Init**: Full systemd boot reaching Multi-User and Graphical targets
 - **QEMU Testing**: Fully functional in s390x emulation
 - **Ready for Hardware**: IPL configuration for real mainframes
 
@@ -34,21 +34,21 @@ make test-systemd
 ### Core System Components
 | Component | Status | Details |
 |-----------|--------|---------|
-| Kernel | ✅ Working | 5.8MB bootable s390x kernel with Arch patches (6.6.10) |
+| Kernel | ✅ Working | 5.8MB bootable s390x kernel with CONFIG_UNIX/CONFIG_KMOD (6.6.10) |
 | Initramfs | ✅ Working | 5.9MB with native s390x binaries |
-| Boot Process | ✅ Working | IPL → kernel → initramfs → root filesystem |
+| Boot Process | ✅ Working | IPL → kernel → initramfs → root filesystem → systemd |
 | Root Filesystem | ✅ **COMPLETE** | 150MB ext4 with working busybox switch_root |
-| Systemd | ✅ **BUILT** | 42MB minimal systemd with native s390x compilation |
+| Systemd | ✅ **WORKING** | 42MB minimal systemd with mount/udevadm - reaches graphical target |
 | mkinitcpio | ✅ Fixed | Adapted for s390x architecture |
 
 ### Userspace Components
 | Component | Status | Details |
 |-----------|--------|---------|
-| Init System | ✅ **DUAL** | Busybox init + systemd available |
+| Init System | ✅ **COMPLETE** | Busybox in initramfs → switch_root → systemd |
 | Shell | 🟨 Minimal | Busybox sh (not bash) |
-| Core Utilities | 🟨 Minimal | Busybox applets only |
+| Core Utilities | ✅ **Enhanced** | Busybox applets + mount/udevadm/kmod utilities |
 | Package Manager | ❌ TODO | Pacman needs porting |
-| Systemd | ✅ **BUILT** | Native s390x compilation complete |
+| Systemd Runtime | ✅ **WORKING** | Full systemd boot with journal, udev, and basic services |
 | Bash | ❌ TODO | Needs s390x build |
 | GNU Coreutils | ❌ TODO | Replace busybox applets |
 
@@ -67,13 +67,13 @@ s390x-archlinux-dev          # All-in-one development container
 ```
 
 ### Build Targets:
-- `make all` - Build complete system (kernel + initramfs)
+- `make all` - Build complete system (kernel + initramfs + systemd)
 - `make kernel` - Cross-compile Arch Linux kernel for s390x
 - `make initramfs` - Generate initramfs with mkinitcpio
-- `make systemd` - Build systemd natively on z/VM
+- `make systemd` - Build systemd natively on z/VM (requires .env configuration)
 - `make test` - Test initramfs-only system with QEMU
 - `make test-rootfs` - Test with root filesystem switching
-- `make test-systemd` - Test with systemd as init
+- `make test-systemd` - Test with systemd as init (full modern boot)
 - `make clean` - Clean build artifacts
 
 ### Key Scripts:
@@ -85,6 +85,31 @@ s390x-archlinux-dev          # All-in-one development container
 - `scripts/test-qemu-rootfs.sh` - Test with root filesystem
 - `scripts/test-qemu-systemd.sh` - Test with systemd as init
 - `scripts/build-busybox-zvm.sh` - Build static busybox on z/VM
+
+## z/VM Configuration
+
+For building systemd and busybox natively on s390x hardware, you'll need access to an IBM z/VM system:
+
+1. **Copy the example configuration**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your z/VM details**:
+   ```bash
+   ZVM_HOST=your.zvm.host
+   ZVM_USER=your_username
+   ZVM_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+   ... your SSH private key content ...
+   -----END OPENSSH PRIVATE KEY-----"
+   ```
+
+3. **Build systemd**:
+   ```bash
+   make systemd
+   ```
+
+The scripts will automatically load the `.env` configuration when needed.
 
 ## Testing
 
@@ -99,13 +124,17 @@ make test
 
 # Test root filesystem switching
 make test-rootfs
+
+# Test full systemd boot (requires systemd build)
+make test-systemd
 ```
 
-**Expected**: 
+**Expected Results**: 
 - `make test` - System boots to emergency shell in initramfs-only mode (press Ctrl-A X to exit)
 - `make test-rootfs` - Boots completely to root filesystem with busybox shell
+- `make test-systemd` - Full systemd boot reaching "Welcome to Arch Linux!" and graphical target
 
-[![asciicast](https://asciinema.org/a/QVmnI1tyJjjFp4cps93qiTbM9.svg)](https://asciinema.org/a/QVmnI1tyJjjFp4cps93qiTbM9)
+[![asciicast](https://asciinema.org/a/u49jp0Bg7YoGtlGyTh6C9RJ7P.svg)](https://asciinema.org/a/u49jp0Bg7YoGtlGyTh6C9RJ7P)
 
 ## Output Files
 
@@ -115,7 +144,8 @@ After building:
 - `boot/rootfs-s390x.img` - Root filesystem image (created by test-rootfs)
 - `boot/generic.ins` - IPL configuration for real hardware
 - `boot/arch.prm` - Kernel parameters
-- `boot/busybox-s390x-static` - Static busybox binary built on z/VM
+- `boot/busybox-s390x-static` - Static busybox binary built on z/VM (used by mkinitcpio)
+- `output/systemd-root/` - Complete systemd installation for root filesystem
 
 ## Technical Details
 
@@ -127,23 +157,19 @@ After building:
 
 ### Key Fixes Applied:
 1. **mkinitcpio adaptation** - Fixed `add_binary` vs `add_file` issue for init scripts
-2. **Static busybox** - Built natively on z/VM to eliminate dynamic linking
+2. **Static busybox in initramfs** - Built natively on z/VM for early boot operations
 3. **Architecture compatibility** - Fixed base hook to exclude x86_64 binaries
-4. **Init script patching** - Modified standard Arch init to use `busybox switch_root`
+4. **switch_root support** - Enables transition from initramfs to systemd on root filesystem
+5. **Kernel configuration** - Added CONFIG_UNIX and CONFIG_KMOD for systemd support
 
-## System Boot Success
+## System Boot Sequence
 
-The system successfully boots from initramfs to root filesystem:
+The complete boot process follows this sequence:
 
-```
-[   22.867595] Run /init as init process
-:: mounting '/dev/vda' on real root
-[   23.131648] EXT4-fs (vda): mounted filesystem r/w with ordered data mode
-/ # cat /etc/os-release
-NAME="Arch Linux"
-PRETTY_NAME="Arch Linux"
-ID=arch
-
-/ # uname -a
-Linux arch 6.6.10 #14 SMP Mon Jun  2 14:59:34 UTC 2025 s390x GNU/Linux
-```
+1. **IPL (Initial Program Load)** - IBM mainframe boot process
+2. **Kernel loads** - Linux 6.6.10 s390x kernel with Arch patches
+3. **Initramfs unpacked** - Contains busybox and init script
+4. **Early boot** - Busybox provides utilities for mounting and setup
+5. **Root filesystem mounted** - `/dev/vda` mounted to `/new_root`
+6. **switch_root** - Busybox `switch_root` transitions to real root filesystem
+7. **Systemd starts** - `/usr/lib/systemd/systemd` becomes PID 1

@@ -37,9 +37,11 @@ sudo dnf install -y \
     libblkid-devel \
     libuuid-devel \
     libseccomp-devel \
+    util-linux \
+    kmod \
+    kmod-devel \
     libacl-devel \
     libattr-devel \
-    kmod-devel \
     elfutils-devel \
     dbus-devel \
     python3-jinja2 \
@@ -145,11 +147,30 @@ rm -rf "$OUTPUT_DIR/usr/share/factory"
 rm -rf "$OUTPUT_DIR/usr/share/bash-completion"
 rm -rf "$OUTPUT_DIR/usr/share/zsh"
 
+# Copy essential system utilities that systemd needs
+echo -e "${YELLOW}Copying essential system utilities...${NC}"
+mkdir -p "$OUTPUT_DIR/usr/bin" "$OUTPUT_DIR/usr/sbin"
+
+# Copy mount utilities from util-linux
+cp /usr/bin/mount "$OUTPUT_DIR/usr/bin/" 2>/dev/null || echo "Warning: mount not found"
+cp /usr/bin/umount "$OUTPUT_DIR/usr/bin/" 2>/dev/null || echo "Warning: umount not found"
+
+# Copy udev utilities
+cp /usr/bin/udevadm "$OUTPUT_DIR/usr/bin/" 2>/dev/null || echo "Warning: udevadm not found"
+
+# Copy kmod utilities
+cp /usr/bin/kmod "$OUTPUT_DIR/usr/bin/" 2>/dev/null || echo "Warning: kmod not found"
+for util in modprobe insmod rmmod lsmod modinfo depmod; do
+    cp "/usr/sbin/$util" "$OUTPUT_DIR/usr/sbin/" 2>/dev/null || \
+    cp "/usr/bin/$util" "$OUTPUT_DIR/usr/bin/" 2>/dev/null || \
+    echo "Warning: $util not found"
+done
+
 # Keep only essential binaries
 cd "$OUTPUT_DIR/usr/bin"
 for binary in *; do
     case "$binary" in
-        systemctl|journalctl|systemd-*) ;;
+        systemctl|journalctl|systemd-*|mount|umount|udevadm|kmod) ;;
         *) rm -f "$binary" ;;
     esac
 done
@@ -158,21 +179,43 @@ done
 echo -e "${YELLOW}Copying runtime libraries...${NC}"
 mkdir -p "$OUTPUT_DIR/lib" "$OUTPUT_DIR/lib64"
 
-# Copy dynamic linker and essential libraries
-cp -L /lib64/ld-linux-s390x.so.2 "$OUTPUT_DIR/lib/" 2>/dev/null || true
-cp -L /lib64/ld64.so.1 "$OUTPUT_DIR/lib/" 2>/dev/null || true
+# Copy dynamic linker to /lib - force copy and verify
+echo "Copying dynamic linker..."
+cp -L /lib64/ld64.so.1 "$OUTPUT_DIR/lib/ld64.so.1" || cp -L /lib/ld64.so.1 "$OUTPUT_DIR/lib/ld64.so.1" || echo "Warning: ld64.so.1 not found"
+cp -L /lib64/ld-linux-s390x.so.2 "$OUTPUT_DIR/lib/ld-linux-s390x.so.2" 2>/dev/null || echo "Warning: ld-linux-s390x.so.2 not found"
+chmod +x "$OUTPUT_DIR/lib/"ld* 2>/dev/null || true
+ls -la "$OUTPUT_DIR/lib/"ld* || echo "No dynamic linker found"
 
-# Copy essential glibc and other system libraries
+# Get all library dependencies for systemd and core binaries
+echo "Analyzing library dependencies..."
+SYSTEMD_DEPS=$(ldd "$OUTPUT_DIR/usr/lib/systemd/systemd" | awk '/=>/ {print $3}' | sort -u)
+JOURNALD_DEPS=$(ldd "$OUTPUT_DIR/usr/lib/systemd/systemd-journald" | awk '/=>/ {print $3}' | sort -u)
+UDEVD_DEPS=$(ldd "$OUTPUT_DIR/usr/lib/systemd/systemd-udevd" | awk '/=>/ {print $3}' | sort -u)
+MOUNT_DEPS=$(ldd "$OUTPUT_DIR/usr/bin/mount" 2>/dev/null | awk '/=>/ {print $3}' | sort -u || true)
+UDEVADM_DEPS=$(ldd "$OUTPUT_DIR/usr/bin/udevadm" 2>/dev/null | awk '/=>/ {print $3}' | sort -u || true)
+KMOD_DEPS=$(ldd "$OUTPUT_DIR/usr/bin/kmod" 2>/dev/null | awk '/=>/ {print $3}' | sort -u || true)
+
+# Copy all discovered dependencies
+echo "Copying system library dependencies..."
+for dep in $SYSTEMD_DEPS $JOURNALD_DEPS $UDEVD_DEPS $MOUNT_DEPS $UDEVADM_DEPS $KMOD_DEPS; do
+    if [ -f "$dep" ]; then
+        cp -L "$dep" "$OUTPUT_DIR/lib64/" 2>/dev/null || true
+        echo "Copied: $(basename "$dep")"
+    fi
+done
+
+# Also copy common libraries manually for completeness
 for lib in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 \
-           libcrypt.so.1 libcap.so.2 libblkid.so.1 libuuid.so.1 \
+           libcrypt.so.1 libcrypt.so.2 libcap.so.2 libblkid.so.1 libuuid.so.1 \
            libmount.so.1 libseccomp.so.2 libacl.so.1 libattr.so.1 \
            libkmod.so.2 libdw.so.1 libelf.so.1 libz.so.1 \
-           libbz2.so.1 liblzma.so.5 libdbus-1.so.3; do
+           libbz2.so.1 liblzma.so.5 libdbus-1.so.3 libselinux.so.1 \
+           libpcre2-8.so.0; do
     find /lib64 /usr/lib64 -name "$lib*" -exec cp -L {} "$OUTPUT_DIR/lib64/" \; 2>/dev/null || true
 done
 
-# Create lib64 symlink
-ln -sf lib "$OUTPUT_DIR/lib64" 2>/dev/null || true
+# Also copy libraries to /lib for compatibility
+cp "$OUTPUT_DIR/lib64/"* "$OUTPUT_DIR/lib/" 2>/dev/null || true
 
 # Create tarball for transfer
 cd "$OUTPUT_DIR"
@@ -189,4 +232,4 @@ echo -e "${GREEN}Tarball size: $TARBALL_SIZE${NC}"
 echo -e "${GREEN}Tarball location: $HOME/systemd-minimal-s390x.tar.gz${NC}"
 echo ""
 echo "To transfer back to your local system:"
-echo "scp -i zvm.pem linux1@148.100.77.9:~/systemd-minimal-s390x.tar.gz output/"
+echo "scp -i zvm.pem \$USER@\$(hostname -f):~/systemd-minimal-s390x.tar.gz output/"

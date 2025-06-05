@@ -1,0 +1,30 @@
+--- a/usr/lib/initcpio/init_functions
++++ b/usr/lib/initcpio/init_functions
+@@ -1,4 +1,14 @@
+ #!/usr/bin/ash
++
++# Pre-mount /run for s390x systems without CONFIG_TMPFS
++premount_run_ramfs() {
++    if [ ! -d /new_root/run ]; then
++        mkdir -p /new_root/run
++    fi
++    # Use ramfs instead of tmpfs due to kernel limitations
++    mount -t ramfs -o mode=755,nodev,nosuid ramfs /new_root/run
++}
++
+ # This file contains common functions used in init and in hooks
+ 
+ msg() {
+--- a/usr/lib/initcpio/init
++++ b/usr/lib/initcpio/init
+@@ -84,6 +84,10 @@ if [ -n "$earlymodules$MODULES" ]; then
+     fi
+ fi
+ 
++# Pre-mount /run using ramfs for s390x systems without CONFIG_TMPFS
++msg ":: Pre-mounting /run with ramfs for systemd compatibility"
++premount_run_ramfs
++
+ msg ":: running hook [udev]"
+ run_hookfunctions 'run_earlyhook' 'early hook' $EARLYHOOKS
+ 
