@@ -3,7 +3,7 @@
 set -e
 
 # Configuration
-KERNEL_VERSION="${KERNEL_VERSION:-6.6.10}"
+KERNEL_VERSION="${KERNEL_VERSION:-6.18.6}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/output"
@@ -27,14 +27,14 @@ if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to clone mkinitcpio${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Cloned latest mkinitcpio${NC}"
+echo -e "${GREEN}OK: Cloned latest mkinitcpio${NC}"
 
 # Create build script that runs inside container
 cat > "$PROJECT_ROOT/build-final-initramfs.sh" << 'EOF'
 #!/bin/bash
 set -e
 
-KERNEL_VERSION="6.6.10"
+KERNEL_VERSION="6.18.6"
 INITRAMFS_OUTPUT="/work/output/initramfs-${KERNEL_VERSION}-s390x.img"
 
 echo "Building and installing modified mkinitcpio..."
@@ -60,7 +60,7 @@ if [ -f "/work/patches/mkinitcpio-s390x-base-hook.patch" ]; then
     echo "Found mkinitcpio patch, applying..."
     cp /work/patches/mkinitcpio-s390x-base-hook.patch install/base
     chmod +x install/base
-    echo "✓ Applied s390x patches to base install hook"
+    echo "OK: Applied s390x patches to base install hook"
 else
     echo "ERROR: Patch file not found at /work/patches/mkinitcpio-s390x-base-hook.patch"
     exit 1
@@ -108,9 +108,9 @@ fi
 echo "Verifying init files installation..."
 # Check both lib and lib64 locations
 if [ -f /usr/lib/initcpio/init ] || [ -f /usr/lib64/initcpio/init ]; then
-    echo "✓ init found"
+    echo "OK: init found"
 else
-    echo "✗ init missing - copying from source"
+    echo "FAIL: init missing - copying from source"
     if [ -f /tmp/mkinitcpio/init ]; then
         mkdir -p /usr/lib/initcpio
         cp /tmp/mkinitcpio/init /usr/lib/initcpio/init
@@ -119,9 +119,9 @@ else
 fi
 
 if [ -f /usr/lib/initcpio/init_functions ] || [ -f /usr/lib64/initcpio/init_functions ]; then
-    echo "✓ init_functions found"
+    echo "OK: init_functions found"
 else
-    echo "✗ init_functions missing - copying from source"
+    echo "FAIL: init_functions missing - copying from source"
     if [ -f /tmp/mkinitcpio/init_functions ]; then
         mkdir -p /usr/lib/initcpio
         cp /tmp/mkinitcpio/init_functions /usr/lib/initcpio/init_functions
@@ -163,10 +163,10 @@ echo "s390x busybox will be handled by the patched mkinitcpio base hook..."
 
 # Ensure busybox binary is available for the base hook
 if [ -f "/work/boot/busybox-s390x-static" ]; then
-    echo "✓ Found s390x static busybox at /work/boot/busybox-s390x-static"
+    echo "OK: Found s390x static busybox at /work/boot/busybox-s390x-static"
     ls -la /work/boot/busybox-s390x-static
 elif [ -f "/work/boot/busybox-s390x-native" ]; then
-    echo "✓ Found s390x native busybox at /work/boot/busybox-s390x-native"
+    echo "OK: Found s390x native busybox at /work/boot/busybox-s390x-native"
     ls -la /work/boot/busybox-s390x-native
 else
     echo "ERROR: No s390x busybox binary found in /work/boot/"
@@ -201,22 +201,22 @@ if [ -f "$INITRAMFS_OUTPUT" ]; then
         echo ""
         # Check for critical files
         if lsinitcpio "$INITRAMFS_OUTPUT" | grep -q "^init$"; then
-            echo "✓ /init found"
+            echo "OK: /init found"
         else
-            echo "✗ /init missing!"
+            echo "FAIL: /init missing!"
         fi
         
         if lsinitcpio "$INITRAMFS_OUTPUT" | grep -q "^init_functions$"; then
-            echo "✓ /init_functions found"
+            echo "OK: /init_functions found"
         else
-            echo "✗ /init_functions missing!"
+            echo "FAIL: /init_functions missing!"
         fi
         
         # Check for busybox
         if lsinitcpio "$INITRAMFS_OUTPUT" | grep -E "bin/busybox$|usr/bin/busybox$" >/dev/null; then
-            echo "✓ busybox found in initramfs"
+            echo "OK: busybox found in initramfs"
         else
-            echo "✗ busybox missing from initramfs!"
+            echo "FAIL: busybox missing from initramfs!"
         fi
         
         # Show first 20 files
@@ -229,9 +229,9 @@ if [ -f "$INITRAMFS_OUTPUT" ]; then
     fi
     
     echo ""
-    echo "✓ Success!"
+    echo "OK: Success!"
 else
-    echo "✗ Failed to generate initramfs"
+    echo "FAIL: Failed to generate initramfs"
     exit 1
 fi
 EOF
@@ -262,11 +262,11 @@ fi
 # Check result
 if [ -f "$OUTPUT_DIR/$INITRAMFS_NAME" ]; then
     SIZE=$(du -h "$OUTPUT_DIR/$INITRAMFS_NAME" | cut -f1)
-    echo -e "${GREEN}✓ Initramfs created with modified mkinitcpio: $OUTPUT_DIR/$INITRAMFS_NAME (${SIZE})${NC}"
+    echo -e "${GREEN}OK: Initramfs created with modified mkinitcpio: $OUTPUT_DIR/$INITRAMFS_NAME (${SIZE})${NC}"
     
     # Update todo to completed
     echo -e "${YELLOW}Marking initramfs build as completed...${NC}"
 else
-    echo -e "${RED}✗ Failed to create initramfs with modified mkinitcpio${NC}"
+    echo -e "${RED}FAIL: Failed to create initramfs with modified mkinitcpio${NC}"
     exit 1
 fi

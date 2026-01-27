@@ -4,7 +4,7 @@
 set -e
 
 # Configuration
-KERNEL_VERSION="${KERNEL_VERSION:-6.6.10}"
+KERNEL_VERSION="${KERNEL_VERSION:-6.18.6}"
 OUTPUT_DIR="output"
 BOOT_DIR="boot"
 
@@ -110,7 +110,7 @@ For QEMU testing:
   make test
 EOF
 
-echo -e "${GREEN}✓ Boot directory prepared successfully!${NC}"
+echo -e "${GREEN}OK: Boot directory prepared successfully!${NC}"
 echo -e "${GREEN}Boot files are in: $BOOT_DIR/${NC}"
 ls -la "$BOOT_DIR/"
 #

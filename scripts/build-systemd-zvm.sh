@@ -226,7 +226,7 @@ tar czf "$HOME/systemd-minimal-s390x.tar.gz" .
 TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" | cut -f1)
 TARBALL_SIZE=$(du -sh "$HOME/systemd-minimal-s390x.tar.gz" | cut -f1)
 
-echo -e "${GREEN}✓ Minimal systemd built successfully!${NC}"
+echo -e "${GREEN}OK: Minimal systemd built successfully!${NC}"
 echo -e "${GREEN}Total size: $TOTAL_SIZE${NC}"
 echo -e "${GREEN}Tarball size: $TARBALL_SIZE${NC}"
 echo -e "${GREEN}Tarball location: $HOME/systemd-minimal-s390x.tar.gz${NC}"

@@ -34,7 +34,7 @@ jobs:
       - name: Check for required busybox
         run: |
           if [ ! -f "boot/busybox-s390x-static" ]; then
-            echo "❌ ERROR: Static busybox not found!"
+            echo "ERROR: Static busybox not found!"
             echo ""
             echo "To build a release, you must first:"
             echo "1. SSH into z/VM: ssh -i zvm.pem -o StrictHostKeyChecking=no \$ZVM_USER@\$ZVM_HOST"
@@ -45,7 +45,7 @@ jobs:
             echo "The busybox MUST be built natively on s390x hardware for proper static linking."
             exit 1
           else
-            echo "✅ Static busybox found at boot/busybox-s390x-static"
+            echo "OK: Static busybox found at boot/busybox-s390x-static"
             ls -la boot/busybox-s390x-static
           fi
       
@@ -95,7 +95,7 @@ jobs:
           
           # Check if build succeeded
           if [ ! -f "boot/vmlinuz-linux" ] || [ ! -f "boot/initramfs-linux.img" ]; then
-            echo "❌ ERROR: Build artifacts not found!"
+            echo "ERROR: Build artifacts not found!"
             echo "Expected files:"
             echo "  boot/vmlinuz-linux"
             echo "  boot/initramfs-linux.img"
@@ -125,11 +125,11 @@ jobs:
           
           # Copy systemd artifacts if available
           if [ -d "output/systemd-root" ]; then
-            echo "✅ Systemd found, including in release"
+            echo "OK: Systemd found, including in release"
             tar -czf release-artifacts/systemd-s390x.tar.gz -C output/systemd-root .
             cp output/systemd-minimal-s390x.tar.gz release-artifacts/ 2>/dev/null || true
           else
-            echo "⚠️ Systemd not found, release will be kernel + initramfs only"
+            echo "WARNING: Systemd not found, release will be kernel + initramfs only"
           fi
           
           # Get actual sizes
@@ -147,7 +147,7 @@ jobs:
           ==================================
           
           Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          Kernel Version: 6.6.10
+          Kernel Version: 6.18.6-arch1
           Architecture: IBM s390x (big-endian)
           
           Component Sizes:
@@ -179,7 +179,7 @@ jobs:
           tar -czf archlinux-s390x-${{ github.event.inputs.version }}.tar.gz -C release-artifacts .
           
           # Capture build information for GitHub release
-          echo "KERNEL_VERSION=6.6.10" >> $GITHUB_ENV
+          echo "KERNEL_VERSION=6.18.6-arch1" >> $GITHUB_ENV
           echo "BUSYBOX_VERSION=1.35.0" >> $GITHUB_ENV
           echo "KERNEL_SIZE=$KERNEL_SIZE" >> $GITHUB_ENV
           echo "INITRAMFS_SIZE=$INITRAMFS_SIZE" >> $GITHUB_ENV

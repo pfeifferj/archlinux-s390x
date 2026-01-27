@@ -78,12 +78,23 @@ cd "$BUILD_DIR"
 
 # Download sources
 echo -e "${YELLOW}Downloading kernel sources...${NC}"
-KERNEL_VERSION="6.6.10"
-KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz"
+KERNEL_VERSION="6.18.6"
+ARCH_TAG="v${KERNEL_VERSION}-arch1"            # v6.18.6-arch1
+
+KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-${KERNEL_VERSION}.tar.xz"
+ARCH_PATCH_URL="https://github.com/archlinux/linux/releases/download/${ARCH_TAG}/linux-${ARCH_TAG}.patch.zst"
 
 if [ ! -f "linux-${KERNEL_VERSION}.tar.xz" ]; then
     wget --no-verbose --show-progress "$KERNEL_URL" || {
         echo -e "${RED}Failed to download kernel${NC}"
+        exit 1
+    }
+fi
+
+if [ ! -f "linux-${ARCH_TAG}.patch.zst" ]; then
+    echo -e "${YELLOW}Downloading Arch Linux patches (${ARCH_TAG})...${NC}"
+    wget --no-verbose --show-progress "$ARCH_PATCH_URL" || {
+        echo -e "${RED}Failed to download Arch patches${NC}"
         exit 1
     }
 fi
@@ -100,6 +111,17 @@ export CROSS_COMPILE=s390x-linux-gnu-
 
 # Enter kernel directory
 cd "linux-${KERNEL_VERSION}"
+
+# Apply Arch Linux patches
+echo -e "${YELLOW}Applying Arch Linux patches...${NC}"
+zstd -d --stdout "../linux-${ARCH_TAG}.patch.zst" | patch -Np1 || {
+    echo -e "${RED}Failed to apply Arch patches${NC}"
+    exit 1
+}
+
+# Set Arch localversion
+echo "-1" > localversion.10-pkgrel
+echo "-s390x" > localversion.20-pkgname
 
 # Apply s390x config
 echo -e "${YELLOW}Configuring kernel for s390x...${NC}"
@@ -137,7 +159,7 @@ Build Method: Arch Linux kernel configuration for s390x
 Kernel Config: Based on Arch Linux defaults + s390x hardware support
 EOFINFO
 
-echo -e "${GREEN}✓ Arch Linux kernel build complete!${NC}"
+echo -e "${GREEN}OK: Arch Linux kernel build complete!${NC}"
 EOF
 
 chmod +x "$BUILD_DIR/build-arch-kernel-container.sh"
@@ -150,6 +172,6 @@ sudo podman run --rm \
     s390x-archlinux-dev \
     /work/build-kernel/build-arch-kernel-container.sh
 
-echo -e "${GREEN}✓ Arch Linux kernel for s390x built successfully!${NC}"
+echo -e "${GREEN}OK: Arch Linux kernel for s390x built successfully!${NC}"
 echo -e "${GREEN}Output files:${NC}"
 ls -la "$OUTPUT_DIR/"*-arch* 2>/dev/null || echo "No Arch kernel files found yet"

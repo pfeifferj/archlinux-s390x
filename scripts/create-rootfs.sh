@@ -359,7 +359,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'echo "🚀 Arch Linux s390x boot completed successfully!"'
+ExecStart=/bin/sh -c 'echo "Arch Linux s390x boot completed successfully!"'
 RemainAfterExit=yes
 
 [Install]

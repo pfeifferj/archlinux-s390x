@@ -2,7 +2,7 @@
 # s390x Port Maintainer: Josephine Pfeiffer <josie@redhat.com>
 
 pkgbase=linux-s390x
-pkgver=6.6.10
+pkgver=6.18.6
 pkgrel=1
 pkgdesc='Linux (s390x mainframe port)'
 url='https://github.com/archlinux/linux'
@@ -28,7 +28,7 @@ options=(
   !strip
 )
 _srcname=linux-${pkgver%.*}
-_srctag=v${pkgver%.*}-${pkgver##*.}
+_srctag=v${pkgver}-arch1
 source=(
   https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
   $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
@@ -40,11 +40,11 @@ validpgpkeys=(
   83BC8889351B5DEBBB68416EB8AC08600F108CDF  # Jan Alexander Steffens (heftig)
 )
 # Updated checksums will be needed after creating config-s390x
-sha256sums=('390cdde032719925a08427270197ef55db4e90c09d454e9c3554157292c9f361'
+sha256sums=('SKIP'
             'SKIP'
-            'e1e44d8c35f908762ffe0d701b0dfc51edbca0c6278aa6e6fddf133c2010c6b3'
             'SKIP'
-            'SKIP')  # config-s390x checksum to be updated
+            'SKIP'
+            'SKIP')
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase

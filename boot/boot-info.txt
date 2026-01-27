@@ -1,8 +1,8 @@
 Arch Linux s390x Boot Directory
 ==============================
 
-Kernel Version: 6.6.10
-Build Date: Thu Jun  5 03:04:40 PM CEST 2025
+Kernel Version: 6.18.6-arch1
+Build Date: Mon Nov 17 06:56:30 PM CET 2025
 Architecture: s390x
 
 Files:

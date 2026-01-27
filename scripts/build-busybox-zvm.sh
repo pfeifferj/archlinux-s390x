@@ -19,8 +19,8 @@ log_info "Building static busybox on native s390x..."
 sudo dnf install -y gcc make wget tar bzip2 glibc-static
 
 # Extract busybox
-tar -xjf busybox-1.35.0.tar.bz2
-cd busybox-1.35.0
+tar -xjf busybox-1.37.0.tar.bz2
+cd busybox-1.37.0
 
 # Configure for static build
 make defconfig
@@ -48,7 +48,7 @@ make CONFIG_STATIC=y LDFLAGS="-static" -j$(nproc)
 
 # Verify the binary
 if [ -f busybox ]; then
-    echo "✅ Busybox built successfully!"
+    echo "Success: Busybox built successfully!"
     echo "File info:"
     file busybox
     echo "Size: $(du -h busybox | cut -f1)"
@@ -58,8 +58,8 @@ if [ -f busybox ]; then
     # Copy to home directory for easy transfer
     cp busybox ~/busybox-s390x-static
     chmod +x ~/busybox-s390x-static
-    echo "✅ Copied to ~/busybox-s390x-static"
+    echo "Success: Copied to ~/busybox-s390x-static"
 else
-    echo "❌ Build failed!"
+    echo "ERROR: Build failed!"
     exit 1
 fi

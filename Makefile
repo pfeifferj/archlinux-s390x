@@ -5,8 +5,8 @@ OUTPUT_DIR := output
 BOOT_DIR := boot
 
 # Output files
-KERNEL := $(OUTPUT_DIR)/vmlinuz-6.6.10-s390x-arch
-INITRAMFS := $(OUTPUT_DIR)/initramfs-6.6.10-s390x.img
+KERNEL := $(OUTPUT_DIR)/vmlinuz-6.18.6-s390x-arch
+INITRAMFS := $(OUTPUT_DIR)/initramfs-6.18.6-s390x.img
 BOOT_KERNEL := $(BOOT_DIR)/vmlinuz-linux
 BOOT_INITRAMFS := $(BOOT_DIR)/initramfs-linux.img
 
